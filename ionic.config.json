@@ -1,0 +1,7 @@
+{
+  "name": "Kyrgz-translation-ionic",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}
