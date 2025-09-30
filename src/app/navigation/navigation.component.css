@@ -1,0 +1,125 @@
+/* Mobile menu scrolling styles */
+.mobile-menu-scrollable {
+  max-height: 80vh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for mobile menu */
+.mobile-menu-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mobile-menu-scrollable::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.mobile-menu-scrollable::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.mobile-menu-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Ensure mobile menu doesn't exceed viewport height */
+@media (max-width: 768px) {
+  .mobile-menu-scrollable {
+    max-height: calc(100vh - 120px); /* Account for navigation bar height */
+  }
+}
+
+/* Smooth transitions for mobile menu */
+.mobile-menu-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Ensure proper spacing for scrollable content */
+.mobile-menu-content {
+  padding-bottom: 20px;
+}
+
+/* Mobile menu overlay */
+.mobile-menu-transition {
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.mobile-menu-content {
+  background-color: white;
+  margin-top: 60px; /* Position below the navigation bar */
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Range input styling for speaking speed */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Force the track background to be gradient for all sliders */
+input[type="range"].slider::-webkit-slider-track,
+.slider::-webkit-slider-track,
+input[type="range"]::-webkit-slider-track {
+  background: linear-gradient(to right, #f97316, #22c55e, #3b82f6) !important; /* Orange to green to blue gradient */
+  height: 8px;
+  border-radius: 4px;
+}
+
+input[type="range"].slider::-moz-range-track,
+.slider::-moz-range-track,
+input[type="range"]::-moz-range-track {
+  background: linear-gradient(to right, #f97316, #22c55e, #3b82f6) !important; /* Orange to green to blue gradient */
+  height: 8px;
+  border-radius: 4px;
+  border: none;
+}
+
+/* Mobile menu specific slider styling */
+.mobile-menu-content input[type="range"]::-webkit-slider-track {
+  background: linear-gradient(to right, #f97316, #22c55e, #3b82f6) !important;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.mobile-menu-content input[type="range"]::-moz-range-track {
+  background: linear-gradient(to right, #f97316, #22c55e, #3b82f6) !important;
+  height: 8px;
+  border-radius: 4px;
+  border: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #3b82f6; /* Blue thumb */
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.slider::-webkit-slider-thumb:hover {
+  background: #2563eb;
+}
+
+.slider::-moz-range-thumb {
+  background: #3b82f6; /* Blue thumb */
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.slider::-moz-range-thumb:hover {
+  background: #2563eb;
+}

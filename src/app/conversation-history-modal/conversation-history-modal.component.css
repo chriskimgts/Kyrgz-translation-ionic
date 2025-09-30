@@ -1,0 +1,289 @@
+/* Modal Overlay Effects */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Android specific adjustments */
+@media screen and (max-width: 768px) {
+  .modal-overlay {
+    padding-top: max(env(safe-area-inset-top), 1rem);
+    align-items: flex-start;
+  }
+}
+
+/* iOS specific adjustments */
+@supports (-webkit-touch-callout: none) {
+  .modal-overlay {
+    padding: 0.25rem;
+    align-items: flex-start;
+    padding-top: max(env(safe-area-inset-top), 0.5rem);
+  }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 64rem;
+  width: 100%;
+  max-height: calc(100vh - 1rem);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s ease-out;
+  overflow: hidden;
+}
+
+/* iOS specific modal sizing */
+@supports (-webkit-touch-callout: none) {
+  .modal-content {
+    max-height: calc(100vh - max(env(safe-area-inset-top), 0.5rem) - 0.5rem);
+    border-radius: 1rem 1rem 0 0;
+    margin-top: 0;
+  }
+}
+
+/* Android specific modal positioning */
+@media screen and (max-width: 768px) {
+  .modal-content {
+    max-height: calc(100vh - max(env(safe-area-inset-top), 1rem) - 1rem);
+    margin-top: 0;
+    border-radius: 1rem 1rem 0 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Fix for search icon truncation */
+.search-icon-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 2.5rem;
+  min-width: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 0.75rem;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 1;
+}
+
+.search-icon-container svg {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Ensure the search input has proper padding to avoid overlap */
+.search-input {
+  padding-left: 2.5rem !important;
+}
+
+/* Ensure the search container doesn't clip content */
+.search-container {
+  position: relative;
+  overflow: visible;
+}
+
+/* Fixed modal header styling */
+.modal-header-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  z-index: 10001;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  /* Ensure header is below status bar */
+  margin-top: env(safe-area-inset-top);
+}
+
+/* Android specific header adjustments */
+@media screen and (max-width: 768px) {
+  .modal-header-fixed {
+    margin-top: max(env(safe-area-inset-top), 80px);
+    padding: 1rem;
+  }
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.modal-subtitle {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+}
+
+/* Close button styling */
+.close-button {
+  color: #9ca3af;
+  transition: color 0.2s ease;
+  position: relative;
+  z-index: 11;
+  padding: 0.5rem;
+  margin: -0.5rem;
+}
+
+.close-button:hover {
+  color: #6b7280;
+}
+
+/* Android specific close button adjustments */
+@media screen and (max-width: 768px) {
+  .close-button {
+    margin-top: -0.25rem;
+    margin-right: -0.25rem;
+  }
+}
+
+/* Modal body styling */
+.modal-body {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+  overflow-y: visible;
+  margin-top: calc(80px + env(safe-area-inset-top)); /* Account for fixed header + status bar */
+}
+
+/* Android specific body adjustments */
+@media screen and (max-width: 768px) {
+  .modal-body {
+    margin-top: calc(max(env(safe-area-inset-top), 80px) + 80px);
+    padding: 1rem;
+  }
+}
+
+/* Conversation list styling - make it flexible for iOS */
+.conversation-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  min-height: 0; /* Important for flexbox scrolling */
+}
+
+/* iOS specific conversation list adjustments */
+@supports (-webkit-touch-callout: none) {
+  .conversation-list {
+    padding: 1rem;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+}
+
+/* Custom scrollbar styling */
+.conversation-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.conversation-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.conversation-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.conversation-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Ensure the modal content can scroll if needed */
+.modal-content-scrollable {
+  overflow-y: auto;
+  max-height: calc(100vh - 2rem);
+}
+
+/* iOS specific scrollable adjustments */
+@supports (-webkit-touch-callout: none) {
+  .modal-content-scrollable {
+    max-height: calc(100vh - max(env(safe-area-inset-top), 0.5rem) - 1rem);
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Modal footer styling */
+.modal-footer {
+  padding: 1.5rem;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 640px) {
+  .modal-content {
+    max-height: calc(100vh - 0.5rem);
+    border-radius: 0.5rem;
+  }
+
+  .modal-header {
+    padding: 1rem;
+  }
+
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .conversation-list {
+    padding: 1rem;
+  }
+
+  .modal-footer {
+    padding: 1rem;
+  }
+}
+
+/* iOS specific mobile adjustments */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 640px) {
+    .modal-content {
+      max-height: calc(100vh - max(env(safe-area-inset-top), 0.25rem) - 0.25rem);
+      border-radius: 1rem 1rem 0 0;
+    }
+  }
+}

@@ -1,0 +1,414 @@
+<div
+  class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8"
+>
+  <div class="sm:mx-auto sm:w-full sm:max-w-md">
+    <div class="text-center">
+      <h1 class="text-3xl font-bold text-gray-900 mb-2">
+        Central Asia Language Translator
+      </h1>
+      <p class="text-lg text-gray-600 mb-8">
+        Real-time translation for Central Asian languages
+      </p>
+    </div>
+  </div>
+
+  <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+    <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 mb-8">
+      <!-- Login Form -->
+      <div *ngIf="!showRegister">
+        <h2 class="text-2xl font-bold text-gray-900 text-center mb-6">
+          Sign in to your account
+        </h2>
+
+        <form class="space-y-6" (ngSubmit)="onLogin()" #loginForm="ngForm">
+          <!-- Login Method Selection -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-3">
+              Login Method
+            </label>
+            <div class="flex space-x-4">
+              <label class="flex items-center">
+                <input
+                  type="radio"
+                  name="loginMethod"
+                  value="email"
+                  [(ngModel)]="loginData.loginMethod"
+                  (ngModelChange)="onLoginMethodChange()"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span class="ml-2 text-sm text-gray-700">Email</span>
+              </label>
+              <label class="flex items-center">
+                <input
+                  type="radio"
+                  name="loginMethod"
+                  value="phone"
+                  [(ngModel)]="loginData.loginMethod"
+                  (ngModelChange)="onLoginMethodChange()"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span class="ml-2 text-sm text-gray-700">Phone Number</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Email Login -->
+          <div *ngIf="loginData.loginMethod === 'email'">
+            <label for="email" class="block text-sm font-medium text-gray-700">
+              Email address
+            </label>
+            <div class="mt-1">
+              <input
+                id="email"
+                name="email"
+                type="email"
+                [(ngModel)]="loginData.email"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Enter your email"
+              />
+            </div>
+          </div>
+
+          <!-- Phone Login -->
+          <div *ngIf="loginData.loginMethod === 'phone'">
+            <label class="block text-sm font-medium text-gray-700">
+              Phone number
+            </label>
+            <div class="mt-1 flex">
+              <select
+                [(ngModel)]="loginData.countryCode"
+                name="loginCountryCode"
+                class="px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
+              >
+                <option
+                  *ngFor="let country of countryCodes"
+                  [value]="country.code"
+                >
+                  {{ country.flag }} {{ country.code }}
+                </option>
+              </select>
+              <input
+                type="tel"
+                [(ngModel)]="loginData.phoneNumber"
+                name="loginPhoneNumber"
+                required
+                class="flex-1 px-3 py-2 border border-l-0 border-gray-300 rounded-r-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Enter your phone number"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              for="password"
+              class="block text-sm font-medium text-gray-700"
+            >
+              Password
+            </label>
+            <div class="mt-1">
+              <input
+                id="password"
+                name="password"
+                type="password"
+                [(ngModel)]="loginData.password"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Enter your password"
+              />
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                [(ngModel)]="loginData.rememberMe"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label for="remember-me" class="ml-2 block text-sm text-gray-900">
+                Remember me
+              </label>
+            </div>
+
+            <div class="text-sm">
+              <a href="#" class="font-medium text-blue-600 hover:text-blue-500">
+                Forgot your password?
+              </a>
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              [disabled]="isLoading"
+              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span *ngIf="!isLoading">Sign in</span>
+              <span *ngIf="isLoading" class="flex items-center">
+                <svg
+                  class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Signing in...
+              </span>
+            </button>
+          </div>
+
+          <div class="text-center">
+            <span class="text-sm text-gray-600"> Don't have an account? </span>
+            <a
+              href="#"
+              (click)="showRegister = true; $event.preventDefault()"
+              class="ml-1 font-medium text-blue-600 hover:text-blue-500"
+            >
+              Sign up
+            </a>
+          </div>
+        </form>
+      </div>
+
+      <!-- Register Form -->
+      <div *ngIf="showRegister">
+        <h2 class="text-2xl font-bold text-gray-900 text-center mb-6">
+          Create your account
+        </h2>
+
+        <form
+          class="space-y-6"
+          (ngSubmit)="onRegister()"
+          #registerForm="ngForm"
+        >
+          <div>
+            <label
+              for="reg-name"
+              class="block text-sm font-medium text-gray-700"
+            >
+              Full name
+            </label>
+            <div class="mt-1">
+              <input
+                id="reg-name"
+                name="name"
+                type="text"
+                [(ngModel)]="registerData.name"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Enter your full name"
+              />
+            </div>
+          </div>
+
+          <!-- Registration Method Selection -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-3">
+              Registration Method
+            </label>
+            <div class="flex space-x-4">
+              <label class="flex items-center">
+                <input
+                  type="radio"
+                  name="registrationMethod"
+                  value="email"
+                  [(ngModel)]="registerData.registrationMethod"
+                  (ngModelChange)="onRegistrationMethodChange()"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span class="ml-2 text-sm text-gray-700">Email</span>
+              </label>
+              <label class="flex items-center">
+                <input
+                  type="radio"
+                  name="registrationMethod"
+                  value="phone"
+                  [(ngModel)]="registerData.registrationMethod"
+                  (ngModelChange)="onRegistrationMethodChange()"
+                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <span class="ml-2 text-sm text-gray-700">Phone Number</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Email Registration -->
+          <div *ngIf="registerData.registrationMethod === 'email'">
+            <label
+              for="reg-email"
+              class="block text-sm font-medium text-gray-700"
+            >
+              Email address
+            </label>
+            <div class="mt-1">
+              <input
+                id="reg-email"
+                name="email"
+                type="email"
+                [(ngModel)]="registerData.email"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Enter your email"
+              />
+            </div>
+          </div>
+
+          <!-- Phone Registration -->
+          <div *ngIf="registerData.registrationMethod === 'phone'">
+            <label class="block text-sm font-medium text-gray-700">
+              Phone number
+            </label>
+            <div class="mt-1 flex">
+              <select
+                [(ngModel)]="registerData.countryCode"
+                name="countryCode"
+                class="px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
+              >
+                <option
+                  *ngFor="let country of countryCodes"
+                  [value]="country.code"
+                >
+                  {{ country.flag }} {{ country.code }}
+                </option>
+              </select>
+              <input
+                type="tel"
+                [(ngModel)]="registerData.phoneNumber"
+                name="phoneNumber"
+                required
+                class="flex-1 px-3 py-2 border border-l-0 border-gray-300 rounded-r-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Enter your phone number"
+              />
+            </div>
+            <p class="mt-1 text-xs text-gray-500">
+              We'll send you a verification code via SMS
+            </p>
+          </div>
+
+          <div>
+            <label
+              for="reg-password"
+              class="block text-sm font-medium text-gray-700"
+            >
+              Password
+            </label>
+            <div class="mt-1">
+              <input
+                id="reg-password"
+                name="password"
+                type="password"
+                [(ngModel)]="registerData.password"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Create a password"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label
+              for="reg-confirm-password"
+              class="block text-sm font-medium text-gray-700"
+            >
+              Confirm password
+            </label>
+            <div class="mt-1">
+              <input
+                id="reg-confirm-password"
+                name="confirmPassword"
+                type="password"
+                [(ngModel)]="registerData.confirmPassword"
+                required
+                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Confirm your password"
+              />
+            </div>
+          </div>
+
+          <div class="flex items-center">
+            <input
+              id="terms"
+              name="terms"
+              type="checkbox"
+              [(ngModel)]="registerData.acceptTerms"
+              required
+              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label for="terms" class="ml-2 block text-sm text-gray-900">
+              I agree to the
+              <a href="#" class="text-blue-600 hover:text-blue-500"
+                >Terms of Service</a
+              >
+              and
+              <a href="#" class="text-blue-600 hover:text-blue-500"
+                >Privacy Policy</a
+              >
+            </label>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              [disabled]="isLoading"
+              class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span *ngIf="!isLoading">Create account</span>
+              <span *ngIf="isLoading" class="flex items-center">
+                <svg
+                  class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Creating account...
+              </span>
+            </button>
+          </div>
+
+          <div class="text-center">
+            <span class="text-sm text-gray-600">
+              Already have an account?
+            </span>
+            <a
+              href="#"
+              (click)="showRegister = false; $event.preventDefault()"
+              class="ml-1 font-medium text-blue-600 hover:text-blue-500"
+            >
+              Sign in
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

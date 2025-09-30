@@ -1,0 +1,487 @@
+<nav class="bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center min-h-20 py-3">
+      <!-- Spacer to push mobile menu to the right -->
+      <div class="flex-1 md:hidden"></div>
+
+      <!-- Main Menu Button - Hidden on desktop when navigation items are visible -->
+      <div class="flex-shrink-0 md:hidden">
+        <button
+          type="button"
+          class="bg-gray-200 inline-flex items-center justify-center p-3 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-400"
+          (click)="toggleMobileMenu()"
+        >
+          <!-- Hamburger icon when menu is closed -->
+          <svg
+            *ngIf="isMobileMenuOpen === false"
+            class="block h-6 w-6"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+          <!-- X/Close icon when menu is open -->
+          <svg
+            *ngIf="isMobileMenuOpen === true"
+            class="block h-6 w-6"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Desktop Navigation Menu -->
+      <div class="hidden md:block ml-auto">
+        <div class="flex items-baseline space-x-4">
+          <!-- Language Selection Dropdown -->
+          <div class="relative group">
+            <button
+              class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+            >
+              <span class="text-lg">🌐</span>
+              {{ translations.languages }}
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                ></path>
+              </svg>
+            </button>
+
+            <!-- Language Selection Dropdown Menu -->
+            <div
+              class="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+            >
+              <div class="p-4">
+                <div class="text-base text-gray-500 mb-3 font-medium">
+                  {{ translations.languages }}
+                </div>
+
+                <!-- User Language Selection -->
+                <div class="mb-3">
+                  <label
+                    class="block text-base font-medium text-gray-700 mb-1 whitespace-nowrap overflow-visible"
+                  >
+                    {{ translations.youSpeak }}
+                  </label>
+                  <select
+                    [(ngModel)]="selectedUserLanguage"
+                    (ngModelChange)="onUserLanguageChange()"
+                    class="w-full p-2 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 whitespace-nowrap min-w-0"
+                    style="min-width: 250px"
+                  >
+                    <option
+                      *ngFor="let lang of userLanguages"
+                      [value]="lang.value"
+                    >
+                      {{ lang.label }}
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Partner Language Selection -->
+                <div class="mb-3">
+                  <label
+                    class="block text-base font-medium text-gray-700 mb-1 whitespace-nowrap overflow-visible"
+                  >
+                    {{ translations.partnerSpeaks }}
+                  </label>
+                  <select
+                    [(ngModel)]="selectedPartnerLanguage"
+                    (ngModelChange)="onPartnerLanguageChange()"
+                    class="w-full p-2 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 whitespace-nowrap min-w-0"
+                    style="min-width: 250px"
+                  >
+                    <option
+                      *ngFor="let lang of partnerLanguages"
+                      [value]="lang.value"
+                    >
+                      {{ lang.label }}
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Speed Control -->
+                <div class="pt-3 border-t border-gray-200">
+                  <label class="block text-sm font-semibold text-gray-800 mb-3">
+                    {{ translations.speakingSpeed }}
+                  </label>
+                  <div class="flex items-center gap-3">
+                    <span class="text-sm font-medium text-gray-600">{{
+                      translations.slow
+                    }}</span>
+                    <input
+                      type="range"
+                      [(ngModel)]="speakingSpeed"
+                      (ngModelChange)="onSpeedChange()"
+                      min="0.5"
+                      max="1.5"
+                      step="0.1"
+                      class="flex-1 h-3 rounded-lg appearance-none cursor-pointer slider focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      style="background: #d1d5db"
+                    />
+                    <span class="text-sm font-medium text-gray-600">{{
+                      translations.fast
+                    }}</span>
+                    <span
+                      class="text-sm font-bold text-blue-700 min-w-[4rem] text-center bg-blue-50 px-2 py-1 rounded-md border border-blue-200"
+                    >
+                      {{ (speakingSpeed * 100).toFixed(0) }}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Voice Selection Dropdown -->
+          <div class="relative group">
+            <button
+              class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+            >
+              <span class="text-lg">🎤</span>
+              {{ translations.voiceType }}
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                ></path>
+              </svg>
+            </button>
+
+            <!-- Voice Selection Dropdown Menu -->
+            <div
+              class="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+            >
+              <div class="py-2">
+                <div
+                  class="px-4 py-2 text-sm text-gray-500 border-b border-gray-100"
+                >
+                  Choose voice type for audio playback
+                </div>
+                <div class="grid grid-cols-2 gap-4 p-2">
+                  <button
+                    *ngFor="let voice of availableVoices"
+                    (click)="selectVoice(voice.id)"
+                    [class]="
+                      selectedVoice === voice.id
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    "
+                    class="text-left px-2 py-2 text-sm rounded-md transition-colors duration-200 flex flex-col items-center gap-1 min-w-0 w-full"
+                  >
+                    <span class="text-lg flex-shrink-0">{{ voice.icon }}</span>
+                    <span
+                      class="text-xs text-center leading-tight break-words"
+                      >{{ voice.name }}</span
+                    >
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Account Section -->
+          <div class="relative group">
+            <button
+              class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center gap-2"
+            >
+              <span class="text-lg">👤</span>
+              <span *ngIf="currentUser">{{ currentUser.name }}</span>
+              <span *ngIf="!currentUser">{{ translations.account }}</span>
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 9l-7 7-7-7"
+                ></path>
+              </svg>
+            </button>
+
+            <!-- Account Dropdown Menu -->
+            <div
+              class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50"
+            >
+              <div class="py-1">
+                <button
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <span class="text-lg">👤</span>
+                  {{ translations.profile }}
+                </button>
+                <button
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <span class="text-lg">⚙️</span>
+                  {{ translations.settings }}
+                </button>
+                <div class="border-t border-gray-100"></div>
+
+                <!-- Conversation History -->
+                <button
+                  *ngIf="isLoggedIn"
+                  (click)="onShowHistory()"
+                  class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <span class="text-lg">💬</span>
+                  {{ translations.history }}
+                </button>
+
+                <!-- Show Login/Register when not logged in -->
+                <div *ngIf="!isLoggedIn">
+                  <button
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <span class="text-lg">🚪</span>
+                    {{ translations.login }}
+                  </button>
+                  <button
+                    class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <span class="text-lg">📝</span>
+                    {{ translations.register }}
+                  </button>
+                </div>
+
+                <!-- Show Logout when logged in -->
+                <button
+                  *ngIf="isLoggedIn"
+                  (click)="onLogout()"
+                  class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+                >
+                  <span class="text-lg">🚪</span>
+                  {{ translations.logout }}
+                </button>
+                <div class="border-t border-gray-100"></div>
+                <div
+                  class="px-4 py-2 text-xs text-gray-500 flex items-center justify-between"
+                >
+                  <span>Version {{ getVersionDisplay() }}</span>
+                  <span
+                    [class]="
+                      isNewVersion
+                        ? 'text-green-600 font-semibold'
+                        : 'text-gray-400'
+                    "
+                    class="text-xs"
+                  >
+                    {{ getVersionStatus() }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Menu -->
+    <div
+      *ngIf="isMobileMenuOpen"
+      class="md:hidden mobile-menu-transition fixed inset-0 z-50"
+      (click)="closeMobileMenu()"
+    >
+      <div
+        class="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200 mobile-menu-scrollable mobile-menu-content"
+        (click)="$event.stopPropagation()"
+      >
+        <!-- Language Selection Mobile -->
+        <div class="px-3 py-2">
+          <div class="text-base text-gray-500 mb-2 font-medium">
+            {{ translations.languages }}:
+          </div>
+
+          <!-- User Language Selection -->
+          <div class="mb-3">
+            <label
+              class="block text-base font-medium text-gray-700 mb-1 whitespace-nowrap overflow-visible"
+            >
+              {{ translations.youSpeak }}
+            </label>
+            <select
+              [(ngModel)]="selectedUserLanguage"
+              (ngModelChange)="onUserLanguageChange()"
+              class="w-full p-2 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 whitespace-nowrap min-w-0"
+              style="min-width: 250px"
+            >
+              <option *ngFor="let lang of userLanguages" [value]="lang.value">
+                {{ lang.label }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Partner Language Selection -->
+          <div class="mb-3">
+            <label
+              class="block text-base font-medium text-gray-700 mb-1 whitespace-nowrap overflow-visible"
+            >
+              {{ translations.partnerSpeaks }}
+            </label>
+            <select
+              [(ngModel)]="selectedPartnerLanguage"
+              (ngModelChange)="onPartnerLanguageChange()"
+              class="w-full p-2 text-lg border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 whitespace-nowrap min-w-0"
+              style="min-width: 250px"
+            >
+              <option
+                *ngFor="let lang of partnerLanguages"
+                [value]="lang.value"
+              >
+                {{ lang.label }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Speed Control Mobile -->
+          <div class="pt-3 border-t border-gray-200">
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              {{ translations.speakingSpeed }}
+            </label>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-500">{{ translations.slow }}</span>
+              <input
+                type="range"
+                [(ngModel)]="speakingSpeed"
+                (ngModelChange)="onSpeedChange()"
+                min="0.5"
+                max="1.5"
+                step="0.1"
+                class="flex-1 h-2 rounded-lg appearance-none cursor-pointer slider"
+                style="background: #d1d5db"
+              />
+              <span class="text-sm text-gray-500">{{ translations.fast }}</span>
+              <span
+                class="text-sm font-medium text-blue-600 min-w-[3rem] text-center"
+              >
+                {{ (speakingSpeed * 100).toFixed(0) }}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Voice Selection Mobile -->
+        <div class="px-3 py-2">
+          <div class="text-sm text-gray-500 mb-2">
+            {{ translations.voiceType }}:
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <button
+              *ngFor="let voice of availableVoices"
+              (click)="selectVoice(voice.id); closeMobileMenu()"
+              [class]="
+                selectedVoice === voice.id
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              "
+              class="text-left px-2 py-2 text-sm rounded-md transition-colors duration-200 flex flex-col items-center gap-1 min-w-0 w-full"
+            >
+              <span class="text-lg flex-shrink-0">{{ voice.icon }}</span>
+              <span class="text-xs text-center leading-tight break-words">{{
+                voice.name
+              }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="border-t border-gray-200 my-2"></div>
+
+        <button
+          class="w-full text-left px-3 py-2 text-gray-700 hover:text-gray-900 flex items-center gap-2"
+        >
+          <span class="text-lg">👤</span>
+          {{ translations.profile }}
+        </button>
+
+        <!-- Show Login/Register when not logged in -->
+        <div *ngIf="!isLoggedIn" class="border-t border-gray-200 pt-2">
+          <button
+            class="w-full text-left px-3 py-2 text-gray-700 hover:text-gray-900 flex items-center gap-2"
+          >
+            <span class="text-lg">🚪</span>
+            {{ translations.login }}
+          </button>
+          <button
+            class="w-full text-left px-3 py-2 text-gray-700 hover:text-gray-900 flex items-center gap-2"
+          >
+            <span class="text-lg">📝</span>
+            {{ translations.register }}
+          </button>
+        </div>
+
+        <!-- Conversation History Mobile -->
+        <button
+          *ngIf="isLoggedIn"
+          (click)="onShowHistory(); closeMobileMenu()"
+          class="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+        >
+          <span class="text-lg">💬</span>
+          {{ translations.history }}
+        </button>
+
+        <!-- Show Logout when logged in -->
+        <button
+          *ngIf="isLoggedIn"
+          (click)="onLogout()"
+          class="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+        >
+          <span class="text-lg">🚪</span>
+          {{ translations.logout }}
+        </button>
+
+        <!-- Version Info Mobile -->
+        <div
+          class="px-3 py-2 text-xs text-gray-500 flex items-center justify-between border-t border-gray-200"
+        >
+          <span>Version {{ getVersionDisplay() }}</span>
+          <span
+            [class]="
+              isNewVersion ? 'text-green-600 font-semibold' : 'text-gray-400'
+            "
+            class="text-xs"
+          >
+            {{ getVersionStatus() }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>

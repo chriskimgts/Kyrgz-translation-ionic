@@ -1,6 +1,21 @@
-import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
+import { provideHttpClient } from '@angular/common/http';
+import { bootstrapApplication } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
+import { provideIonicAngular } from '@ionic/angular/standalone';
 
-import { AppModule } from './app/app.module';
+import { routes } from './app/app-routing.module';
+import { AppComponent } from './app/app.component';
+import { AuthService } from './app/auth.service';
+import { ConversationHistoryService } from './app/conversation-history.service';
+import { TranslatorService } from './app/services/translator.service';
 
-platformBrowserDynamic().bootstrapModule(AppModule)
-  .catch(err => console.log(err));
+bootstrapApplication(AppComponent, {
+  providers: [
+    provideIonicAngular(),
+    provideHttpClient(),
+    provideRouter(routes),
+    AuthService,
+    ConversationHistoryService,
+    TranslatorService,
+  ],
+}).catch((err) => console.log(err));

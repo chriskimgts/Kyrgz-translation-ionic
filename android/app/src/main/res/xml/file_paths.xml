@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- External storage - for user-accessible files -->
+    <external-path name="external_files" path="." />
+
+    <!-- App's internal cache - for temporary files -->
+    <cache-path name="cache_files" path="." />
+
+    <!-- App's internal files - for persistent app data -->
+    <files-path name="internal_files" path="." />
+
+    <!-- External cache - for shareable temporary files -->
+    <external-cache-path name="external_cache" path="." />
+
+    <!-- External files - for shareable persistent files -->
+    <external-files-path name="external_files_dir" path="." />
+
+    <!-- Specific paths for translation app -->
+    <files-path name="conversations" path="conversations/" />
+    <files-path name="audio" path="audio/" />
+    <cache-path name="temp_audio" path="temp_audio/" />
+    <external-files-path name="exports" path="exports/" />
+</paths>

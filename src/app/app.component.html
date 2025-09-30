@@ -1,3 +1,487 @@
-<ion-app>
-  <ion-router-outlet></ion-router-outlet>
-</ion-app>
+<!-- Login Page -->
+<app-login
+  *ngIf="!isLoggedIn"
+  (loginSuccess)="onLoginSuccess($event)"
+  (registerSuccess)="onRegisterSuccess($event)"
+>
+</app-login>
+
+<!-- Main App (only shown when logged in and modal is not open) -->
+<div *ngIf="isLoggedIn" class="main-app">
+  <!-- Navigation Bar -->
+  <app-navigation
+    [selectedVoice]="selectedVoice"
+    [availableVoices]="availableVoices"
+    [currentUser]="currentUser"
+    [isLoggedIn]="isLoggedIn"
+    [selectedUserLanguage]="selectedUserLanguage"
+    [selectedPartnerLanguage]="selectedPartnerLanguage"
+    [speakingSpeed]="speakingSpeed"
+    (voiceSelected)="selectVoice($event)"
+    (languageChanged)="onLanguageChanged($event)"
+    (speedChanged)="onSpeedChange($event)"
+    (showHistory)="onShowHistory()"
+    (logout)="onLogout()"
+  >
+  </app-navigation>
+
+  <div class="main-content p-1">
+    <div
+      class="grid grid-cols-1 lg:grid-cols-2 gap-2 md:gap-4 max-w-4xl mx-auto"
+    >
+      <!-- User → Partner Lane -->
+      <section class="border rounded-xl p-3 md:p-4 shadow">
+        <div class="mb-4">
+          <h2 class="text-lg md:text-xl font-semibold mb-3">
+            {{ translations.youSpeakLabel }}
+            <span class="font-mono">{{
+              getUserLanguageName(selectedUserLanguage)
+            }}</span>
+            → {{ translations.hears }}
+            <span class="font-mono">{{
+              getPartnerLanguageName(selectedPartnerLanguage)
+            }}</span>
+          </h2>
+          <div class="flex flex-wrap gap-2">
+            <button
+              (click)="onStartRecording('user')"
+              [disabled]="recording"
+              class="px-2 py-2 text-sm md:px-3 md:text-base rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex-1 min-w-0 transition-all duration-200"
+            >
+              <span *ngIf="!recording || currentLane !== 'user'">{{
+                translations.start
+              }}</span>
+              <span
+                *ngIf="recording && currentLane === 'user'"
+                class="flex items-center gap-2"
+              >
+                <svg
+                  class="w-4 h-4 animate-pulse"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                {{ translations.recording }}
+              </span>
+            </button>
+            <button
+              (click)="stopRecording()"
+              [disabled]="!recording"
+              class="px-2 py-2 text-sm md:px-3 md:text-base rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 flex-1 min-w-0"
+            >
+              {{ translations.end }}
+            </button>
+            <button
+              (click)="clearUserText()"
+              class="px-2 py-2 text-sm md:px-3 md:text-base rounded bg-gray-500 text-white hover:bg-gray-600 flex-1 min-w-0"
+            >
+              {{ translations.clear }}
+            </button>
+          </div>
+
+          <!-- Translation Spinner - More Visible Under Buttons -->
+          <div
+            *ngIf="isProcessingTranslation && currentLane === 'user'"
+            class="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-center gap-2"
+          >
+            <div
+              class="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"
+            ></div>
+            <span class="text-orange-700 font-medium"
+              >Translating to
+              {{ getPartnerLanguageName(selectedPartnerLanguage) }}...</span
+            >
+          </div>
+
+          <!-- Text Input Section for User -->
+          <div class="mt-4 p-3 bg-gray-50 rounded-lg border">
+            <div class="flex gap-2">
+              <div class="flex-1">
+                <textarea
+                  [(ngModel)]="userTextInput"
+                  placeholder="{{ translations.typeMessage }} ({{
+                    translations.maxWords
+                  }})"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none select-text"
+                  rows="2"
+                  maxlength="1000"
+                  style="
+                    user-select: text;
+                    -webkit-user-select: text;
+                    -moz-user-select: text;
+                    -ms-user-select: text;
+                  "
+                ></textarea>
+                <div class="text-xs text-gray-500 mt-1 text-right">
+                  {{ userTextInput.length }}/1000 {{ translations.characters }}
+                </div>
+              </div>
+              <button
+                (click)="translateUserText()"
+                [disabled]="!userTextInput.trim() || isProcessingTranslation"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                {{ translations.translate }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Current listening status -->
+        <div
+          *ngIf="recording && currentLane === 'user'"
+          class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg"
+        >
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+            <span class="text-sm text-blue-700"
+              >Listening for
+              {{ getUserLanguageName(selectedUserLanguage) }}
+              speech...</span
+            >
+            <div
+              *ngIf="isPlayingAudio"
+              class="flex items-center gap-1 text-blue-600"
+            >
+              <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span class="text-xs">Playing audio...</span>
+            </div>
+          </div>
+          <div class="mt-2 text-xs text-blue-600 font-medium">
+            🎯 Please speak ONLY in
+            {{ getUserLanguageName(selectedUserLanguage) }} language
+          </div>
+          <div
+            *ngIf="isAutoRestarting && currentLane === 'user'"
+            class="mt-2 text-xs text-orange-600 font-medium"
+          >
+            🔄 Auto-restarting for next speech...
+          </div>
+          <div
+            *ngIf="
+              (currentEnText && currentEnText.trim()) ||
+              (currentKyText && currentKyText.trim())
+            "
+            class="current-translation mt-2 text-sm text-gray-600 select-text"
+            style="
+              user-select: text;
+              -webkit-user-select: text;
+              -moz-user-select: text;
+              -ms-user-select: text;
+            "
+          >
+            <div *ngIf="currentEnText && currentEnText.trim()" class="mb-1">
+              <strong>{{ getUserLanguageName(selectedUserLanguage) }}:</strong>
+              <span class="selectable-text">{{ currentEnText }}</span>
+            </div>
+            <div *ngIf="currentKyText && currentKyText.trim()">
+              <strong
+                >{{ getPartnerLanguageName(selectedPartnerLanguage) }}:</strong
+              >
+              <span class="selectable-text">{{ currentKyText }}</span>
+              <span
+                class="ml-2 text-xs"
+                [class]="
+                  currentEnConfidence > 0.7
+                    ? 'text-green-600'
+                    : currentEnConfidence > 0.4
+                    ? 'text-yellow-600'
+                    : 'text-red-600'
+                "
+              >
+                ({{ (currentEnConfidence * 100).toFixed(0) }}% confidence)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conversation history -->
+        <div
+          id="en-conversation"
+          class="space-y-3 max-h-64 md:max-h-96 overflow-y-auto"
+        >
+          <div
+            *ngFor="let entry of enConversation"
+            class="conversation-item border rounded-lg p-3 bg-gray-50 select-text"
+            style="
+              user-select: text;
+              -webkit-user-select: text;
+              -moz-user-select: text;
+              -ms-user-select: text;
+            "
+          >
+            <div class="text-sm text-gray-500 mb-1 flex items-center gap-2">
+              <span>{{ entry.timestamp | date : "short" }}</span>
+              <span
+                *ngIf="entry.confidence"
+                class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded"
+              >
+                {{ (entry.confidence * 100).toFixed(0) }}% confidence
+              </span>
+            </div>
+            <div class="mb-2">
+              <div class="text-sm text-gray-600 mb-1">
+                <strong
+                  >You speak
+                  {{ getUserLanguageName(entry.userLanguage) }}:</strong
+                >
+              </div>
+              <div class="p-2 bg-white rounded border">
+                {{ entry.original }}
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-600 mb-1">
+                <strong
+                  >Partner hears
+                  {{ getPartnerLanguageName(entry.partnerLanguage) }}:</strong
+                >
+              </div>
+              <div class="p-2 bg-white rounded border">
+                {{ entry.translated }}
+              </div>
+              <audio
+                *ngIf="entry.audioUrl"
+                [src]="entry.audioUrl"
+                controls
+                class="mt-2 w-full"
+              ></audio>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Partner → User Lane -->
+      <section class="border rounded-xl p-3 md:p-4 shadow">
+        <div class="mb-4">
+          <h2 class="text-lg md:text-xl font-semibold mb-3">
+            {{ translations.partnerSpeaksLabel }}
+            <span class="font-mono">{{
+              getPartnerLanguageName(selectedPartnerLanguage)
+            }}</span>
+            → {{ translations.hears }}
+            <span class="font-mono">{{
+              getUserLanguageName(selectedUserLanguage)
+            }}</span>
+          </h2>
+          <div class="flex flex-wrap gap-2">
+            <button
+              (click)="onStartRecording('partner')"
+              [disabled]="recording"
+              class="px-2 py-2 text-sm md:px-3 md:text-base rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 flex-1 min-w-0 transition-all duration-200"
+            >
+              <span *ngIf="!recording || currentLane !== 'partner'">Start</span>
+              <span
+                *ngIf="recording && currentLane === 'partner'"
+                class="flex items-center gap-2"
+              >
+                <svg
+                  class="w-4 h-4 animate-pulse"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                Listening
+              </span>
+            </button>
+            <button
+              (click)="stopRecording()"
+              [disabled]="!recording"
+              class="px-2 py-2 text-sm md:px-3 md:text-base rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 flex-1 min-w-0"
+            >
+              {{ translations.end }}
+            </button>
+            <button
+              (click)="clearPartnerText()"
+              class="px-2 py-2 text-sm md:px-3 md:text-base rounded bg-gray-500 text-white hover:bg-gray-600 flex-1 min-w-0"
+            >
+              {{ translations.clear }}
+            </button>
+          </div>
+
+          <!-- Translation Spinner - More Visible Under Buttons -->
+          <div
+            *ngIf="isProcessingTranslation && currentLane === 'partner'"
+            class="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-center gap-2"
+          >
+            <div
+              class="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"
+            ></div>
+            <span class="text-orange-700 font-medium"
+              >Translating to
+              {{ getUserLanguageName(selectedUserLanguage) }}...</span
+            >
+          </div>
+
+          <!-- Text Input Section for Partner -->
+          <div class="mt-4 p-3 bg-gray-50 rounded-lg border">
+            <div class="flex gap-2">
+              <div class="flex-1">
+                <textarea
+                  [(ngModel)]="partnerTextInput"
+                  placeholder="{{ translations.typePartnerMessage }} ({{
+                    translations.maxWords
+                  }})"
+                  class="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none select-text"
+                  rows="2"
+                  maxlength="1000"
+                  style="
+                    user-select: text;
+                    -webkit-user-select: text;
+                    -moz-user-select: text;
+                    -ms-user-select: text;
+                  "
+                ></textarea>
+                <div class="text-xs text-gray-500 mt-1 text-right">
+                  {{ partnerTextInput.length }}/1000 characters
+                </div>
+              </div>
+              <button
+                (click)="translatePartnerText()"
+                [disabled]="!partnerTextInput.trim() || isProcessingTranslation"
+                class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                {{ translations.translate }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Current listening status -->
+        <div
+          *ngIf="recording && currentLane === 'partner'"
+          class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg"
+        >
+          <div class="flex items-center gap-2">
+            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            <span class="text-sm text-green-700"
+              >Listening for
+              {{ getPartnerLanguageName(selectedPartnerLanguage) }}
+              speech...</span
+            >
+            <div
+              *ngIf="isPlayingAudio"
+              class="flex items-center gap-1 text-green-600"
+            >
+              <div
+                class="w-2 h-2 bg-green-500 rounded-full animate-pulse"
+              ></div>
+              <span class="text-xs">Playing audio...</span>
+            </div>
+          </div>
+          <div class="mt-2 text-xs text-green-600 font-medium">
+            🎯 Please speak ONLY in
+            {{ getPartnerLanguageName(selectedPartnerLanguage) }} language
+          </div>
+          <div
+            *ngIf="isAutoRestarting && currentLane === 'partner'"
+            class="mt-2 text-xs text-orange-600 font-medium"
+          >
+            🔄 Auto-restarting for next speech...
+          </div>
+          <div
+            *ngIf="
+              (currentKyInText && currentKyInText.trim()) ||
+              (currentEnOutText && currentEnOutText.trim())
+            "
+            class="current-translation mt-2 text-sm text-gray-600 select-text"
+            style="
+              user-select: text;
+              -webkit-user-select: text;
+              -moz-user-select: text;
+              -ms-user-select: text;
+            "
+          >
+            <div *ngIf="currentKyInText && currentKyInText.trim()" class="mb-1">
+              <strong
+                >{{ getPartnerLanguageName(selectedPartnerLanguage) }}:</strong
+              >
+              <span class="selectable-text">{{ currentKyInText }}</span>
+            </div>
+            <div *ngIf="currentEnOutText && currentEnOutText.trim()">
+              <strong>English:</strong>
+              <span class="selectable-text">{{ currentEnOutText }}</span>
+              <span
+                class="ml-2 text-xs"
+                [class]="
+                  currentKyConfidence > 0.7
+                    ? 'text-green-600'
+                    : currentKyConfidence > 0.4
+                    ? 'text-yellow-600'
+                    : 'text-red-600'
+                "
+              >
+                ({{ (currentKyConfidence * 100).toFixed(0) }}% confidence)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Conversation history -->
+        <div
+          id="ky-conversation"
+          class="space-y-3 max-h-64 md:max-h-96 overflow-y-auto"
+        >
+          <div
+            *ngFor="let entry of kyConversation"
+            class="conversation-item border rounded-lg p-3 bg-gray-50 select-text"
+            style="
+              user-select: text;
+              -webkit-user-select: text;
+              -moz-user-select: text;
+              -ms-user-select: text;
+            "
+          >
+            <div class="text-sm text-gray-500 mb-1 flex items-center gap-2">
+              <span>{{ entry.timestamp | date : "short" }}</span>
+              <span
+                *ngIf="entry.confidence"
+                class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded"
+              >
+                {{ (entry.confidence * 100).toFixed(0) }}% confidence
+              </span>
+            </div>
+            <div class="mb-2">
+              <div class="text-sm text-gray-600 mb-1">
+                <strong
+                  >{{ translations.partnerSpeaksLabel }}
+                  {{ getPartnerLanguageName(entry.userLanguage) }}:</strong
+                >
+              </div>
+              <div class="p-2 bg-white rounded border">
+                {{ entry.original }}
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-600 mb-1">
+                <strong
+                  >You hear
+                  {{ getUserLanguageName(entry.partnerLanguage) }}:</strong
+                >
+              </div>
+              <div class="p-2 bg-white rounded border">
+                {{ entry.translated }}
+              </div>
+              <audio
+                *ngIf="entry.audioUrl"
+                [src]="entry.audioUrl"
+                controls
+                class="mt-2 w-full"
+              ></audio>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Conversation History Modal -->
+  <app-conversation-history-modal
+    [isOpen]="showHistoryModal"
+    (close)="onCloseHistory()"
+    (playAudio)="onPlayHistoryAudio($event)"
+    (clearMainConversations)="clearAllConversations()"
+  ></app-conversation-history-modal>
+</div>
