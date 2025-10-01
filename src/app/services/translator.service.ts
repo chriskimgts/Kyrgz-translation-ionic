@@ -150,6 +150,7 @@ export class TranslatorService {
         confidence: result.confidence as number,
         wrongLanguage: result.wrongLanguage as boolean,
         message: result.message as string,
+        warning: result.warning as string,
       };
     } catch (error) {
       console.error('💥 Transcription error:', error);

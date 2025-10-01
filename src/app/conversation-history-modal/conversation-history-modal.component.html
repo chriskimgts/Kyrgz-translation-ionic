@@ -1,36 +1,89 @@
 <!-- Modal Overlay -->
 <div *ngIf="isOpen" class="modal-overlay" (click)="onClose()">
-  <!-- Fixed Modal Header - Outside of scrollable content -->
-  <div class="modal-header-fixed">
-    <div>
-      <h2 class="modal-title">Conversation History</h2>
-      <p class="modal-subtitle">
-        {{ getTotalConversations() }} conversations •
-        {{ getTotalDuration() }} total duration
-      </p>
-    </div>
-    <button (click)="onClose()" class="close-button">
-      <svg
-        class="w-6 h-6"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M6 18L18 6M6 6l12 12"
-        ></path>
-      </svg>
-    </button>
-  </div>
-
-  <!-- Modal Content - Scrollable area -->
+  <!-- Modal Content -->
   <div class="modal-content" (click)="$event.stopPropagation()">
+    <!-- Mobile Header - only on mobile -->
+    <div class="sm:hidden p-4 border-b border-gray-200">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-bold">Conversation History</h2>
+        <button (click)="onClose()" class="text-gray-500 hover:text-gray-700">
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Search Box -->
+      <div class="relative mb-3">
+        <input
+          type="text"
+          [(ngModel)]="searchQuery"
+          (input)="onSearchChange()"
+          placeholder="Search conversations..."
+          class="w-full pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        />
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-2">
+        <label class="flex-1 cursor-pointer">
+          <div
+            class="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-center h-full flex items-center justify-center"
+          >
+            📤 Import
+          </div>
+          <input
+            type="file"
+            accept=".json"
+            (change)="onImportHistory($event)"
+            class="hidden"
+          />
+        </label>
+        <button
+          (click)="onClearAllHistory()"
+          class="flex-1 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-lg hover:bg-red-100"
+        >
+          🗑️ Clear All
+        </button>
+      </div>
+    </div>
     <!-- Search and Controls -->
-    <div class="modal-body">
-      <div class="flex flex-col sm:flex-row gap-4">
+    <div class="modal-body hidden sm:block">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="modal-title">Conversation History</h2>
+          <p class="modal-subtitle">
+            {{ getTotalConversations() }} conversations •
+            {{ getTotalDuration() }} total duration
+          </p>
+        </div>
+        <button (click)="onClose()" class="close-button">
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2 sm:gap-4 hidden sm:flex">
         <!-- Search Input -->
         <div class="flex-1">
           <div class="relative search-container">
@@ -61,14 +114,8 @@
 
         <!-- Action Buttons -->
         <div class="flex gap-2">
-          <button
-            (click)="onExportHistory()"
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            📥 Export
-          </button>
           <label
-            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            class="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-center"
           >
             📤 Import
             <input
@@ -80,7 +127,7 @@
           </label>
           <button
             (click)="onClearAllHistory()"
-            class="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
+            class="flex-1 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-300 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             🗑️ Clear All
           </button>

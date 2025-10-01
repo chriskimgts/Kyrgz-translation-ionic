@@ -1,3 +1,39 @@
+/* Menu overlay to block background interactions */
+.menu-overlay-blocker {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  pointer-events: all;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Slide-in menu animation from left (Charles Schwab style) */
+.slide-menu {
+  animation: slideInFromLeft 0.3s ease-out;
+  transform-origin: left;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  overflow-y: auto;
+  overflow-x: hidden;
+  pointer-events: all;
+  z-index: 10000;
+}
+
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 /* Mobile menu scrolling styles */
 .mobile-menu-scrollable {
   max-height: 80vh;

@@ -704,11 +704,12 @@ export class AppComponent implements OnDestroy {
     const hasAudioChunks = this.chunks.length > 0;
 
     if (!hasSpeechContent && !hasAudioChunks) {
-      // No speech detected - show alert and clean up
-      console.log('No speech detected when stopping recording');
+      // No speech detected - just clean up without alert
+      console.log(
+        'No speech detected when stopping recording - cleaning up silently'
+      );
       this.hideAllSpinners();
       this.cleanupBuffers(); // Clean up buffers when no speech detected
-      alert('No speech detected. Please speak before clicking End.');
       this.cdr.detectChanges();
       return; // Exit early - no processing needed
     }
@@ -898,19 +899,19 @@ export class AppComponent implements OnDestroy {
       let transcribedText = transcriptionResult.text;
       const transcriptionConfidence = transcriptionResult.confidence;
 
-      // Check for wrong language detection from backend
-      if (transcriptionResult.wrongLanguage) {
+      // Debug: Check what we received
+      console.log('📦 Transcription result:', transcriptionResult);
+      console.log('📦 Warning field:', (transcriptionResult as any).warning);
+      console.log('📦 WrongLanguage field:', transcriptionResult.wrongLanguage);
+
+      // Check for language mismatch warning (show toast but continue)
+      if ((transcriptionResult as any).warning) {
         console.warn(
-          '🚫 Wrong language detected by backend:',
-          transcriptionResult.message
+          '⚠️ Language warning:',
+          (transcriptionResult as any).warning
         );
-        this.hideAllSpinners();
-        this.cleanupBuffers();
-        alert(
-          transcriptionResult.message ||
-            'Please speak in the selected language.'
-        );
-        return;
+        // Show auto-dismissing toast (2 seconds) but CONTINUE translation
+        this.showToast((transcriptionResult as any).warning);
       }
 
       // Debug logging for transcription issues
@@ -925,7 +926,9 @@ export class AppComponent implements OnDestroy {
         console.warn('Empty transcription received from API');
         this.hideAllSpinners();
         this.cleanupBuffers(); // Clean up buffers on empty transcription
-        alert('Could not transcribe speech. Please try speaking again.');
+        this.showToast(
+          'Could not transcribe speech. Please try speaking again.'
+        );
         return;
       }
 
@@ -945,7 +948,7 @@ export class AppComponent implements OnDestroy {
           transcribedText.split('WRONG_LANGUAGE_DETECTED:')[1]?.trim() ||
           'Please speak in the selected language.';
         console.log('📢 Showing user message:', userMessage);
-        alert(userMessage);
+        this.showToast(userMessage);
         return;
       } else {
         console.log(
@@ -954,19 +957,26 @@ export class AppComponent implements OnDestroy {
       }
 
       // Fallback: Frontend language detection if backend doesn't work
-      const isWrongLanguage = this.detectWrongLanguageFrontend(
-        transcribedText,
-        transcriptionLanguage
-      );
-      if (isWrongLanguage) {
-        console.warn('🚫 Frontend wrong language detection triggered');
-        this.hideAllSpinners();
-        this.cleanupBuffers();
-
-        const userMessage = this.getWrongLanguageMessage(transcriptionLanguage);
-        console.log('📢 Showing frontend user message:', userMessage);
-        alert(userMessage);
-        return;
+      // Skip frontend detection for English to avoid false positives with accents
+      if (transcriptionLanguage !== 'en') {
+        const isWrongLanguage = this.detectWrongLanguageFrontend(
+          transcribedText,
+          transcriptionLanguage
+        );
+        if (isWrongLanguage) {
+          console.warn('🚫 Frontend wrong language detection triggered');
+          // Don't stop - just show toast and continue
+          const userMessage = this.getWrongLanguageMessage(
+            transcriptionLanguage
+          );
+          console.log('📢 Showing frontend user message:', userMessage);
+          this.showToast(userMessage);
+          // Continue with translation instead of returning
+        }
+      } else {
+        console.log(
+          '⏭️ Skipping frontend detection for English (backend handles it)'
+        );
       }
 
       // Deadlock detection - check for system errors that could cause deadlocks
@@ -974,25 +984,15 @@ export class AppComponent implements OnDestroy {
         console.warn('🚫 Deadlock translation detected, stopping process');
         this.hideAllSpinners();
         this.cleanupBuffers();
-        alert('Translation deadlock detected. Please try again.');
+        this.showToast('Translation deadlock detected. Please try again.');
         return;
       }
 
-      // Language filtering - only display text in the selected language
-      const filteredText = this.filterLanguageText(
-        transcribedText,
-        transcriptionLanguage
+      // Language filtering - REMOVED blocking, now just warning via toast
+      // The backend AI detection will show a warning toast but still translate
+      console.log(
+        '✅ Proceeding with translation regardless of language warning'
       );
-      if (!filteredText || filteredText.trim().length === 0) {
-        console.warn('No text in selected language detected');
-        this.hideAllSpinners();
-        this.cleanupBuffers();
-        alert(
-          `Please speak in ${this.getLanguageName(transcriptionLanguage)} only.`
-        );
-        return;
-      }
-      transcribedText = filteredText;
 
       // Convert Kazakh text to Kyrgyz if detected
       if (transcriptionLanguage === 'ky') {
@@ -1099,7 +1099,7 @@ export class AppComponent implements OnDestroy {
         console.warn('Empty translation received from API');
         this.hideAllSpinners();
         this.cleanupBuffers(); // Clean up buffers on empty translation
-        alert('Translation failed. Please try speaking again.');
+        this.showToast('Translation failed. Please try speaking again.');
         return;
       }
 
@@ -1114,7 +1114,9 @@ export class AppComponent implements OnDestroy {
         console.warn('Empty TTS audio received from API');
         this.hideAllSpinners();
         this.cleanupBuffers(); // Clean up buffers on TTS failure
-        alert('Failed to generate audio for translation. Please try again.');
+        this.showToast(
+          'Failed to generate audio for translation. Please try again.'
+        );
         return;
       }
 
@@ -1192,7 +1194,7 @@ export class AppComponent implements OnDestroy {
       console.error('Error during audio processing:', error);
       this.hideAllSpinners();
       this.cleanupBuffers(); // Clean up buffers on error
-      alert('An error occurred during processing. Please try again.');
+      this.showToast('An error occurred during processing. Please try again.');
     } finally {
       // Clear the timeout since processing is complete
       clearTimeout(cleanupTimeout);
@@ -1235,7 +1237,7 @@ export class AppComponent implements OnDestroy {
         if (!translation || translation.trim().length === 0) {
           console.warn('Empty translation received from API');
           this.hideAllSpinners();
-          alert('Translation failed. Please try speaking again.');
+          this.showToast('Translation failed. Please try speaking again.');
           return;
         }
 
@@ -1255,7 +1257,9 @@ export class AppComponent implements OnDestroy {
         if (!ttsResult || !ttsResult.audioUrl) {
           console.warn('Empty TTS audio received from API');
           this.hideAllSpinners();
-          alert('Failed to generate audio for translation. Please try again.');
+          this.showToast(
+            'Failed to generate audio for translation. Please try again.'
+          );
           return;
         }
 
@@ -1321,7 +1325,7 @@ export class AppComponent implements OnDestroy {
         if (!translation || translation.trim().length === 0) {
           console.warn('Empty translation received from API');
           this.hideAllSpinners();
-          alert('Translation failed. Please try speaking again.');
+          this.showToast('Translation failed. Please try speaking again.');
           return;
         }
 
@@ -1341,7 +1345,9 @@ export class AppComponent implements OnDestroy {
         if (!ttsResult || !ttsResult.audioUrl) {
           console.warn('Empty TTS audio received from API');
           this.hideAllSpinners();
-          alert('Failed to generate audio for translation. Please try again.');
+          this.showToast(
+            'Failed to generate audio for translation. Please try again.'
+          );
           return;
         }
 
@@ -1397,7 +1403,7 @@ export class AppComponent implements OnDestroy {
       console.error('Error during sentence processing:', error);
       this.hideAllSpinners();
       this.cleanupBuffers(); // Clean up buffers on error
-      alert('An error occurred during processing. Please try again.');
+      this.showToast('An error occurred during processing. Please try again.');
     }
   }
 
@@ -1412,7 +1418,9 @@ export class AppComponent implements OnDestroy {
     // Check word limit (200 words)
     const wordCount = text.split(/\s+/).length;
     if (wordCount > 200) {
-      alert('Text exceeds 200 words limit. Please shorten your message.');
+      this.showToast(
+        'Text exceeds 200 words limit. Please shorten your message.'
+      );
       return;
     }
 
@@ -1443,7 +1451,7 @@ export class AppComponent implements OnDestroy {
       if (!translation || translation.trim().length === 0) {
         console.warn('Empty translation received from API');
         this.hideAllSpinners();
-        alert('Translation failed. Please try again.');
+        this.showToast('Translation failed. Please try again.');
         return;
       }
 
@@ -1463,7 +1471,9 @@ export class AppComponent implements OnDestroy {
       if (!ttsResult || !ttsResult.audioUrl) {
         console.warn('Empty TTS audio received from API');
         this.hideAllSpinners();
-        alert('Failed to generate audio for translation. Please try again.');
+        this.showToast(
+          'Failed to generate audio for translation. Please try again.'
+        );
         return;
       }
 
@@ -1522,7 +1532,7 @@ export class AppComponent implements OnDestroy {
         name: error instanceof Error ? error.name : 'Unknown',
       });
       this.hideAllSpinners();
-      alert(
+      this.showToast(
         `Failed to translate text: ${
           error instanceof Error ? error.message : String(error)
         }. Please try again.`
@@ -1541,7 +1551,9 @@ export class AppComponent implements OnDestroy {
     // Check word limit (200 words)
     const wordCount = text.split(/\s+/).length;
     if (wordCount > 200) {
-      alert('Text exceeds 200 words limit. Please shorten your message.');
+      this.showToast(
+        'Text exceeds 200 words limit. Please shorten your message.'
+      );
       return;
     }
 
@@ -1572,7 +1584,7 @@ export class AppComponent implements OnDestroy {
       if (!translation || translation.trim().length === 0) {
         console.warn('Empty translation received from API');
         this.hideAllSpinners();
-        alert('Translation failed. Please try again.');
+        this.showToast('Translation failed. Please try again.');
         return;
       }
 
@@ -1592,7 +1604,9 @@ export class AppComponent implements OnDestroy {
       if (!ttsResult || !ttsResult.audioUrl) {
         console.warn('Empty TTS audio received from API');
         this.hideAllSpinners();
-        alert('Failed to generate audio for translation. Please try again.');
+        this.showToast(
+          'Failed to generate audio for translation. Please try again.'
+        );
         return;
       }
 
@@ -1651,7 +1665,7 @@ export class AppComponent implements OnDestroy {
         name: error instanceof Error ? error.name : 'Unknown',
       });
       this.hideAllSpinners();
-      alert(
+      this.showToast(
         `Failed to translate text: ${
           error instanceof Error ? error.message : String(error)
         }. Please try again.`
@@ -1687,7 +1701,7 @@ export class AppComponent implements OnDestroy {
 
     this.currentAudio.play().catch((error) => {
       console.error('Audio playback failed:', error);
-      alert('Unable to play audio: ' + error.message);
+      this.showToast('Unable to play audio: ' + error.message);
     });
 
     // Clean up when audio ends
@@ -2126,7 +2140,7 @@ export class AppComponent implements OnDestroy {
       this.playAudio(conversation.audioUrl);
     } else {
       console.log('No audio data available for this conversation');
-      alert('No audio available for this conversation');
+      this.showToast('No audio available for this conversation');
     }
   }
 
@@ -2336,5 +2350,34 @@ export class AppComponent implements OnDestroy {
       uz: 'Uzbek',
     };
     return languageNames[languageCode] || languageCode;
+  }
+
+  /**
+   * Show auto-dismissing toast message
+   */
+  private showToast(message: string) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 0, 0, 0.85);
+      color: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      z-index: 99999;
+      max-width: 80%;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    `;
+    document.body.appendChild(toast);
+
+    // Auto-dismiss after 2 seconds
+    setTimeout(() => {
+      toast.remove();
+    }, 2000);
   }
 }

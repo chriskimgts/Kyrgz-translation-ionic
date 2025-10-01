@@ -662,58 +662,58 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
         };
         // Handle language detection for different languages
         if (language === 'ky') {
-            // Partner is speaking Kyrgyz - use auto-detection with strong Kyrgyz context
-            // Don't set language parameter since 'ky' is not supported by Whisper
+            // Partner is speaking Kyrgyz - don't force language, just transcribe accurately
+            // Let Whisper auto-detect and we'll check if it matches expectations
             transcriptionParams.prompt =
-                'CRITICAL: You are transcribing audio for a real-time translation app. The user has selected KYRGYZ as their language. ONLY transcribe if the speech is in KYRGYZ (Кыргызча). If you detect ANY non-Kyrgyz language (English, Russian, Kazakh, Korean, Chinese, etc.), immediately return "WRONG_LANGUAGE_DETECTED: Кыргызча сүйлөңүз" and do NOT transcribe the content. Only transcribe actual Kyrgyz speech using Cyrillic script. Common Kyrgyz words: салам, рахмат, кандайсыз, эмне, качан, кайда, ким, жакшы, жаман, мен, сен, ал, биз, силер, алар.';
+                "Transcribe this audio accurately. If the speaker is speaking Kyrgyz (Кыргызча) with an accent, write it in Cyrillic script. If they're speaking English, Korean, Chinese, or another language, transcribe it in that language's native script. Be accurate - don't convert languages. Common Kyrgyz words: мен ачка (I'm hungry), сиздин атыңыз ким (what's your name), салам (hello), рахмат (thank you).";
         }
         else if (language === 'en') {
-            // User is speaking English - set language and English context
+            // User is speaking English
             transcriptionParams.language = 'en';
             transcriptionParams.prompt =
-                'CRITICAL: You are transcribing audio for a real-time translation app. The user has selected ENGLISH as their language. ONLY transcribe if the speech is in ENGLISH. If you detect ANY non-English language (Korean, Chinese, Japanese, Russian, Kyrgyz, Arabic, Spanish, French, German, etc.), immediately return "WRONG_LANGUAGE_DETECTED: Please speak in English" and do NOT transcribe the content. Only transcribe actual English speech. Common English words: hello, thank you, how are you, what, when, where, who, good, bad, big, small, I, you, he, she, we, they, will, was, there is, hurry, quick, fast, slow, help, please, sorry, excuse me.';
+                "Transcribe this audio accurately. If speaking English with an accent, write clear English. If speaking Korean, Chinese, Russian, or another language, transcribe in that language. Don't convert languages - just transcribe what you hear.";
         }
         else if (language === 'ru') {
-            // Russian language detection
+            // Russian
             transcriptionParams.language = 'ru';
             transcriptionParams.prompt =
-                'IMPORTANT: This audio contains speech in RUSSIAN LANGUAGE ONLY. The speaker is speaking exclusively in Russian. If the speech is NOT in Russian (if it sounds like Kyrgyz, Kazakh, English, or other languages), return "WRONG_LANGUAGE_DETECTED: Говорите по-русски" instead of transcribing. Transcribe exactly what you hear in Russian.';
+                "Transcribe accurately. If speaking Russian with an accent, write in Cyrillic. If speaking another language, transcribe in that language. Don't convert - just transcribe what you hear.";
         }
         else if (language === 'ko') {
-            // Korean language detection
+            // Korean
             transcriptionParams.language = 'ko';
             transcriptionParams.prompt =
-                'CRITICAL: You are transcribing audio for a real-time translation app. The user has selected KOREAN as their language. ONLY transcribe if the speech is in KOREAN (한국어). If you detect ANY non-Korean language (English, Chinese, Japanese, Russian, Spanish, etc.), immediately return "WRONG_LANGUAGE_DETECTED: 한국어로 말해주세요" and do NOT transcribe the content. Only transcribe actual Korean speech using Hangul characters.';
+                "Transcribe accurately. If speaking Korean with an accent, write in Hangul. If speaking another language, transcribe in that language. Don't convert - just transcribe what you hear.";
         }
         else if (language === 'zh') {
-            // Chinese language detection
+            // Chinese
             transcriptionParams.language = 'zh';
             transcriptionParams.prompt =
-                'IMPORTANT: This audio contains speech in CHINESE LANGUAGE ONLY. The speaker is speaking exclusively in Chinese (中文). If the speech is NOT in Chinese (if it sounds like English, Korean, Japanese, or other languages), return "WRONG_LANGUAGE_DETECTED: 请说中文" instead of transcribing. Transcribe exactly what you hear in Chinese.';
+                "Transcribe accurately. If speaking Chinese with an accent, write in Chinese characters. If speaking another language, transcribe in that language. Don't convert - just transcribe what you hear.";
         }
         else if (language === 'kk') {
-            // Kazakh language detection
+            // Kazakh
             transcriptionParams.language = 'kk';
             transcriptionParams.prompt =
-                'IMPORTANT: This audio contains speech in KAZAKH LANGUAGE ONLY. The speaker is speaking exclusively in Kazakh (Қазақша). If the speech is NOT in Kazakh (especially if it sounds like Kyrgyz, Russian, or other languages), return "WRONG_LANGUAGE_DETECTED: Қазақша сөйлеңіз" instead of transcribing. Transcribe exactly what you hear in Kazakh.';
+                "Transcribe accurately. If speaking Kazakh with an accent, write in Cyrillic. If speaking another language, transcribe in that language. Don't convert - just transcribe what you hear.";
         }
         else if (language === 'tg') {
-            // Tajik language detection
+            // Tajik
             transcriptionParams.language = 'tg';
             transcriptionParams.prompt =
-                'IMPORTANT: This audio contains speech in TAJIK LANGUAGE ONLY. The speaker is speaking exclusively in Tajik (Тоҷикӣ). If the speech is NOT in Tajik (if it sounds like Russian, Uzbek, or other languages), return "WRONG_LANGUAGE_DETECTED: Тоҷикӣ сухан бигӯед" instead of transcribing. Transcribe exactly what you hear in Tajik.';
+                "Transcribe accurately. If speaking Tajik with an accent, write in Cyrillic. If speaking another language, transcribe in that language. Don't convert - just transcribe what you hear.";
         }
         else if (language === 'tk') {
-            // Turkmen language detection
+            // Turkmen
             transcriptionParams.language = 'tk';
             transcriptionParams.prompt =
-                'IMPORTANT: This audio contains speech in TURKMEN LANGUAGE ONLY. The speaker is speaking exclusively in Turkmen (Türkmençe). If the speech is NOT in Turkmen (if it sounds like Turkish, Uzbek, or other languages), return "WRONG_LANGUAGE_DETECTED: Türkmençe gürrüň" instead of transcribing. Transcribe exactly what you hear in Turkmen.';
+                "Transcribe accurately. If speaking Turkmen with an accent, write in Latin script. If speaking another language, transcribe in that language. Don't convert - just transcribe what you hear.";
         }
         else if (language === 'uz') {
-            // Uzbek language detection
+            // Uzbek
             transcriptionParams.language = 'uz';
             transcriptionParams.prompt =
-                'IMPORTANT: This audio contains speech in UZBEK LANGUAGE ONLY. The speaker is speaking exclusively in Uzbek (O\'zbekcha). If the speech is NOT in Uzbek (if it sounds like Turkish, Kazakh, or other languages), return "WRONG_LANGUAGE_DETECTED: O\'zbekcha gapiring" instead of transcribing. Transcribe exactly what you hear in Uzbek.';
+                "Transcribe accurately. If speaking Uzbek with an accent, write in Latin script. If speaking another language, transcribe in that language. Don't convert - just transcribe what you hear.";
         }
         else {
             // Fallback for other languages
@@ -725,7 +725,7 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
         }
         const response = await openai.audio.transcriptions.create(transcriptionParams);
         // Extract text from response
-        const text = response.text || '';
+        let text = response.text || '';
         // Debug logging for transcription issues
         console.log('🎤 BACKEND TRANSCRIPTION DEBUG:');
         console.log('  - Language:', language);
@@ -733,43 +733,114 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
         console.log('  - File size:', req.file.size, 'bytes');
         console.log('  - Raw transcription:', `"${text}"`);
         console.log('  - Transcription length:', text.length);
-        // Check for wrong language detection
+        // Legacy check for WRONG_LANGUAGE_DETECTED - now just log it but don't block
         if (text.includes('WRONG_LANGUAGE_DETECTED:')) {
-            const wrongLanguageMessage = text
-                .replace('WRONG_LANGUAGE_DETECTED:', '')
-                .trim();
-            console.log('🚫 Wrong language detected:', wrongLanguageMessage);
-            res.json({
-                text: '',
-                confidence: 0,
-                wrongLanguage: true,
-                message: wrongLanguageMessage,
-            });
-            return;
+            console.log('⚠️ Legacy WRONG_LANGUAGE_DETECTED found in text, ignoring and continuing...');
+            // Remove the WRONG_LANGUAGE_DETECTED marker from text
+            text = text.replace('WRONG_LANGUAGE_DETECTED:', '').trim();
         }
-        // Additional language detection based on character patterns
-        const isWrongLanguage = detectWrongLanguageByPatterns(text, language);
-        if (isWrongLanguage.detected) {
-            console.log('🚫 Wrong language detected by pattern analysis:', isWrongLanguage.message);
-            res.json({
-                text: '',
-                confidence: 0,
-                wrongLanguage: true,
-                message: isWrongLanguage.message,
+        // Advanced language mismatch detection using AI
+        // Since prompts are very tolerant, we need AI to check if the transcription matches the audio
+        let warningMessage = '';
+        try {
+            // Ask AI if the transcribed text matches the expected language
+            const languageNames = {
+                ky: 'Kyrgyz',
+                en: 'English',
+                ko: 'Korean',
+                zh: 'Chinese',
+                ru: 'Russian',
+                kk: 'Kazakh',
+                tg: 'Tajik',
+                tk: 'Turkmen',
+                uz: 'Uzbek',
+            };
+            const expectedLangName = languageNames[language] || language;
+            const detectionPrompt = `Task: Identify if the wrong language was spoken.
+
+Expected language: ${expectedLangName}
+Transcribed text: "${text}"
+
+Question: What language was ACTUALLY SPOKEN by the user?
+
+CRITICAL Rules:
+1. If text is in Latin script (a-z, A-Z) and contains English words → Answer "DETECTED: English"
+2. If text is in Cyrillic (а-я, А-Я) but looks like English transliterated (e.g., "Хангри", "Уот из юр нейм") → Answer "DETECTED: English"
+3. If text is in Hangul (한글) but looks like English transliterated → Answer "DETECTED: English"
+4. If text is real ${expectedLangName} vocabulary and grammar → Answer "OK"
+
+Examples:
+- Kyrgyz expected, text "HUNGRY" → DETECTED: English
+- Kyrgyz expected, text "Хангри" → DETECTED: English (transliterated)
+- Kyrgyz expected, text "Мен ачка" → OK (real Kyrgyz)
+- Korean expected, text "What" → DETECTED: English
+- English expected, text "Hello" → OK
+
+Respond with ONLY ONE LINE:
+"OK" or "DETECTED: [language]"`;
+            const detectionResponse = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages: [{ role: 'user', content: detectionPrompt }],
+                temperature: 0,
+                max_tokens: 20,
             });
-            return;
+            const detectionResult = detectionResponse.choices[0]?.message?.content?.trim() || 'OK';
+            console.log('🔍 AI language detection result:', detectionResult);
+            console.log('🔍 Expected language:', expectedLangName);
+            console.log('🔍 Transcribed text:', text);
+            if (detectionResult.startsWith('DETECTED:')) {
+                warningMessage =
+                    detectionResult.replace('DETECTED:', '').trim() + ' detected';
+                console.log('⚠️ Language mismatch warning:', warningMessage);
+            }
+            else if (!detectionResult.startsWith('OK')) {
+                // Sometimes AI might just say the language name
+                warningMessage = detectionResult;
+                console.log('⚠️ Language detection response:', warningMessage);
+            }
         }
-        // Additional check for wrong language words in transcription
-        const wrongLanguageDetection = detectWrongLanguageWords(text, language);
-        if (wrongLanguageDetection.detected) {
-            console.log('🚫 Wrong language words detected:', wrongLanguageDetection.message);
-            res.json({
-                text: '',
-                confidence: 0,
-                wrongLanguage: true,
-                message: wrongLanguageDetection.message,
-            });
-            return;
+        catch (err) {
+            console.error('Language detection AI error:', err);
+            // If AI detection fails, fall back to simple script detection
+            const hasCyrillic = /[а-яА-ЯёЁ]/.test(text);
+            const hasHangul = /[가-힣]/.test(text);
+            const hasChinese = /[\u4e00-\u9fff]/.test(text);
+            const hasLatin = /[a-zA-Z]/.test(text);
+            let detectedLanguage = '';
+            if (hasHangul)
+                detectedLanguage = 'Korean';
+            else if (hasChinese)
+                detectedLanguage = 'Chinese';
+            else if (hasCyrillic)
+                detectedLanguage = 'Cyrillic script';
+            else if (hasLatin)
+                detectedLanguage = 'English/Latin script';
+            if (language === 'ky' ||
+                language === 'ru' ||
+                language === 'kk' ||
+                language === 'tg') {
+                if (!hasCyrillic && detectedLanguage) {
+                    warningMessage = `${detectedLanguage} detected`;
+                }
+            }
+            else if (language === 'ko') {
+                if (!hasHangul && detectedLanguage) {
+                    warningMessage = `${detectedLanguage} detected`;
+                }
+            }
+            else if (language === 'zh') {
+                if (!hasChinese && detectedLanguage) {
+                    warningMessage = `${detectedLanguage} detected`;
+                }
+            }
+            else if (language === 'en' || language === 'tk' || language === 'uz') {
+                if (!hasLatin && detectedLanguage) {
+                    warningMessage = `${detectedLanguage} detected`;
+                }
+            }
+            if (warningMessage) {
+                console.log('⚠️ Fallback language mismatch warning:', warningMessage);
+            }
         }
         // Only return text if it's meaningful
         if (text && text.trim()) {
@@ -778,6 +849,7 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
             res.json({
                 text: text.trim(),
                 confidence: confidence,
+                warning: warningMessage || undefined,
             });
         }
         else {
@@ -812,67 +884,43 @@ app.post('/api/translate', async (req, res) => {
             res.json({ text: '' });
             return;
         }
-        // Filter out unwanted translation responses
-        const filteredText = text.toLowerCase().trim();
-        if (filteredText.includes('thank you for watching') ||
-            filteredText.includes('thank you for watching!') ||
-            filteredText.includes('thanks for watching') ||
-            filteredText.includes('thanks for watching!') ||
-            filteredText === 'thank you for watching' ||
-            filteredText === 'thanks for watching') {
-            console.log('Filtered out unwanted translation response:', text);
-            res.json({ text: '' });
-            return;
-        }
-        // Filter out English speech when translating to English (Kyrgyz lane)
-        if (target === 'en') {
-            // Check if the text contains common English words/patterns
-            const englishPatterns = [
-                /\b(hello|hi|hey|good|morning|afternoon|evening|night|yes|no|please|thank|you|welcome|sorry|excuse|me|how|are|what|where|when|why|who|can|could|would|should|will|shall|have|has|had|do|does|did|am|is|are|was|were|be|been|being|the|a|an|and|or|but|so|if|then|because|although|while|during|before|after|until|since|for|with|without|by|from|to|in|on|at|up|down|out|off|over|under|through|across|around|between|among|against|toward|towards|into|onto|upon|within|beyond|behind|below|above|beneath|beside|besides|except|including|regarding|concerning|considering|given|provided|unless|whether|either|neither|both|all|some|any|every|each|other|another|such|same|different|similar|like|unlike|as|than|more|most|less|least|very|quite|rather|too|enough|so|such|much|many|few|little|several|all|both|half|double|triple|single|multiple|various|several|numerous|countless|infinite|limited|unlimited|restricted|unrestricted|free|bound|tied|loose|tight|loose|firm|soft|hard|easy|difficult|simple|complex|basic|advanced|beginner|expert|professional|amateur|skilled|unskilled|experienced|inexperienced|qualified|unqualified|certified|uncertified|licensed|unlicensed|authorized|unauthorized|official|unofficial|formal|informal|public|private|personal|professional|business|commercial|industrial|residential|urban|rural|domestic|international|local|global|national|regional|state|federal|municipal|county|city|town|village|neighborhood|community|society|culture|tradition|custom|habit|routine|practice|method|technique|approach|strategy|tactic|plan|schedule|agenda|program|project|task|job|work|career|profession|occupation|employment|business|company|organization|institution|agency|department|division|section|unit|team|group|committee|board|council|government|administration|management|leadership|supervision|direction|guidance|instruction|education|training|learning|teaching|studying|research|development|improvement|progress|advancement|growth|expansion|increase|decrease|reduction|cut|save|spend|invest|earn|make|lose|win|fail|succeed|achieve|accomplish|complete|finish|start|begin|continue|stop|end|pause|resume|delay|hurry|rush|slow|fast|quick|slow|early|late|on|time|punctual|tardy|available|unavailable|busy|free|occupied|vacant|empty|full|complete|incomplete|finished|unfinished|done|undone|ready|unready|prepared|unprepared|organized|disorganized|clean|dirty|neat|messy|tidy|untidy|orderly|disorderly|systematic|random|logical|illogical|reasonable|unreasonable|rational|irrational|sensible|nonsensical|practical|impractical|useful|useless|helpful|unhelpful|beneficial|harmful|safe|dangerous|secure|insecure|stable|unstable|steady|unsteady|firm|weak|strong|powerful|powerless|effective|ineffective|efficient|inefficient|productive|unproductive|successful|unsuccessful|profitable|unprofitable|valuable|worthless|important|unimportant|significant|insignificant|major|minor|main|secondary|primary|secondary|first|last|next|previous|current|past|future|present|recent|old|new|young|mature|immature|adult|child|baby|infant|teenager|elderly|senior|junior|beginner|expert|novice|veteran|fresh|stale|hot|cold|warm|cool|dry|wet|moist|damp|humid|arid|bright|dark|light|heavy|thick|thin|wide|narrow|broad|deep|shallow|high|low|tall|short|long|brief|big|small|large|tiny|huge|enormous|massive|giant|mini|micro|macro|super|mega|ultra|hyper|extra|special|unique|different|same|similar|identical|exact|precise|accurate|wrong|incorrect|right|correct|true|false|real|fake|genuine|authentic|original|copy|duplicate|single|double|triple|quadruple|multiple|many|few|several|some|all|none|nothing|everything|something|anything|someone|anyone|everyone|nobody|somebody|anybody|everybody|here|there|where|when|why|how|what|which|who|whom|whose|this|that|these|those|my|your|his|her|its|our|their|mine|yours|hers|ours|theirs|me|you|him|her|it|us|them|myself|yourself|himself|herself|itself|ourselves|yourselves|themselves|i|we|he|she|they|am|is|are|was|were|be|been|being|have|has|had|having|do|does|did|doing|will|would|could|should|may|might|must|can|cannot|can't|won't|wouldn't|couldn't|shouldn't|mayn't|mightn't|mustn't|shan't|ain't|isn't|aren't|wasn't|weren't|haven't|hasn't|hadn't|don't|doesn't|didn't)\b/gi,
-            ];
-            const isEnglish = englishPatterns.some((pattern) => pattern.test(text));
-            if (isEnglish) {
-                console.log('Filtered out English speech in Kyrgyz lane:', text);
-                res.json({ text: '' });
-                return;
-            }
-        }
         let system = '';
         if (target === 'ky') {
             system =
-                "You are a professional translator. Translate the following text to Kyrgyz (Кыргызча) using Cyrillic script. Use natural, fluent Kyrgyz that sounds like a native speaker would say it. For commands like 'hurry up', use 'Тезирээк болуңуз!' (formal) or 'Шашыңыз!' (informal). Return only the translation, no explanations.";
+                "You are a professional Kyrgyz translator helping non-native speakers communicate. IMPORTANT: The source text is from a non-native speaker with a strong foreign accent trying to speak Kyrgyz - focus on understanding what they MEANT to say, not what they actually said. Think like ChatGPT - be intelligent and helpful. Translate their intended meaning into natural, fluent Kyrgyz (Кыргызча) using Cyrillic script that a native speaker would use. Examples: 'hurry up' → 'Тезирээк!' or 'Шашыңыз!', 'what is your name' → 'Сиздин атыңыз ким?', 'I am hungry' → 'Мен ачка', 'let's go' → 'Баралы'. Be smart, natural, and conversational. Return only the Kyrgyz translation.";
         }
         else if (target === 'ru') {
             system =
-                "You are a professional translator. Translate the following text to Russian (Русский) using Cyrillic script. Use natural, fluent Russian that sounds like a native speaker would say it. For commands like 'hurry up', use 'Торопитесь!' (formal) or 'Торопись!' (informal). Return only the translation, no explanations.";
+                "You are a professional translator. Translate the following text to Russian (Русский) using Cyrillic script. IMPORTANT: The source text may be spoken with a foreign accent or contain pronunciation variations - focus on the MEANING and INTENT, not the exact pronunciation. Use natural, fluent Russian that sounds like a native speaker would say it. For commands like 'hurry up', use 'Торопитесь!' (formal) or 'Торопись!' (informal). Return only the translation, no explanations.";
         }
         else if (target === 'ko') {
             system =
-                "You are a professional translator. Translate the following text to Korean (한국어) using Hangul script. Use natural, fluent Korean that sounds like a native speaker would say it. For commands like 'hurry up', use '빨리하세요!' (formal) or '빨리해!' (informal). Return only the translation, no explanations.";
+                "You are a professional translator. Translate the following text to Korean (한국어) using Hangul script. IMPORTANT: The source text may be spoken with a foreign accent or contain pronunciation variations - focus on the MEANING and INTENT, not the exact pronunciation. Use natural, fluent Korean that sounds like a native speaker would say it. For commands like 'hurry up', use '빨리하세요!' (formal) or '빨리해!' (informal). Return only the translation, no explanations.";
         }
         else if (target === 'zh') {
             system =
-                "You are a professional translator. Translate the following text to Chinese (中文) using Chinese characters. Use natural, fluent Chinese that sounds like a native speaker would say it. For commands like 'hurry up', use '快点!' (informal) or '请快点!' (formal). Return only the translation, no explanations.";
+                "You are a professional translator. Translate the following text to Chinese (中文) using Chinese characters. IMPORTANT: The source text may be spoken with a foreign accent or contain pronunciation variations - focus on the MEANING and INTENT, not the exact pronunciation. Use natural, fluent Chinese that sounds like a native speaker would say it. For commands like 'hurry up', use '快点!' (informal) or '请快点!' (formal). Return only the translation, no explanations.";
         }
         else if (target === 'kk') {
             system =
-                "You are a professional translator. Translate the following text to Kazakh (Қазақша) using Cyrillic script. Use natural, fluent Kazakh that sounds like a native speaker would say it. For commands like 'hurry up', use 'Асықыңыз!' (formal) or 'Асық!' (informal). Return only the translation, no explanations.";
+                "You are a professional translator. Translate the following text to Kazakh (Қазақша) using Cyrillic script. IMPORTANT: The source text may be spoken with a foreign accent or contain pronunciation variations - focus on the MEANING and INTENT, not the exact pronunciation. Use natural, fluent Kazakh that sounds like a native speaker would say it. For commands like 'hurry up', use 'Асықыңыз!' (formal) or 'Асық!' (informal). Return only the translation, no explanations.";
         }
         else if (target === 'tg') {
             system =
-                "You are a professional translator. Translate the following text to Tajik (Тоҷикӣ) using Cyrillic script. Use natural, fluent Tajik that sounds like a native speaker would say it. For commands like 'hurry up', use 'Шитоб кунед!' (formal) or 'Шитоб кун!' (informal). Return only the translation, no explanations.";
+                "You are a professional translator. Translate the following text to Tajik (Тоҷикӣ) using Cyrillic script. IMPORTANT: The source text may be spoken with a foreign accent or contain pronunciation variations - focus on the MEANING and INTENT, not the exact pronunciation. Use natural, fluent Tajik that sounds like a native speaker would say it. For commands like 'hurry up', use 'Шитоб кунед!' (formal) or 'Шитоб кун!' (informal). Return only the translation, no explanations.";
         }
         else if (target === 'tk') {
             system =
-                "You are a professional translator. Translate the following text to Turkmen (Türkmençe) using Latin script. Use natural, fluent Turkmen that sounds like a native speaker would say it. For commands like 'hurry up', use 'Çalt boluň!' (formal) or 'Çalt bol!' (informal). Return only the translation, no explanations.";
+                "You are a professional translator. Translate the following text to Turkmen (Türkmençe) using Latin script. IMPORTANT: The source text may be spoken with a foreign accent or contain pronunciation variations - focus on the MEANING and INTENT, not the exact pronunciation. Use natural, fluent Turkmen that sounds like a native speaker would say it. For commands like 'hurry up', use 'Çalt boluň!' (formal) or 'Çalt bol!' (informal). Return only the translation, no explanations.";
         }
         else if (target === 'uz') {
             system =
-                "You are a professional translator. Translate the following text to Uzbek (O'zbekcha) using Latin script. Use natural, fluent Uzbek that sounds like a native speaker would say it. For commands like 'hurry up', use 'Shoshiling!' (formal) or 'Shoshil!' (informal). Return only the translation, no explanations.";
+                "You are a professional translator. Translate the following text to Uzbek (O'zbekcha) using Latin script. IMPORTANT: The source text may be spoken with a foreign accent or contain pronunciation variations - focus on the MEANING and INTENT, not the exact pronunciation. Use natural, fluent Uzbek that sounds like a native speaker would say it. For commands like 'hurry up', use 'Shoshiling!' (formal) or 'Shoshil!' (informal). Return only the translation, no explanations.";
         }
         else {
+            // For Kyrgyz → English, use specialized prompt (handle both Cyrillic and Latin transliterations)
             system =
-                'You are a professional translator. Translate the following text to English. Use natural, fluent English that sounds like a native speaker would say it. If the text contains any English words, return empty string. Return only the translation, no explanations.';
+                'You are a professional translator specializing in Central Asian languages. Translate the following Kyrgyz text (may be in Cyrillic or Latin transliteration) to natural, fluent English. CRITICAL PHRASES: "Мен ачка" / "men achka" / "Men achka" / "Ачкамын" / "achkamyn" = "I\'m hungry", "Мен суусадым" / "men suusadym" = "I\'m thirsty", "Тезирээк" / "tezireek" = "Hurry up", "Баралы" / "baraly" = "Let\'s go". The text may be spoken with a non-native accent. Focus on the actual MEANING. Return only the English translation, no explanations.';
         }
         console.log(`Translating "${text}" to ${target} with system: ${system}`);
         const chat = await openai.chat.completions.create({
