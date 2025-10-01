@@ -1,0 +1,13 @@
+{
+	"appId": "com.kyrgz.translation",
+	"appName": "Kyrgz-translation-ionic",
+	"webDir": "www",
+	"packageClassList": [
+		"AppPlugin",
+		"DevicePlugin",
+		"FilesystemPlugin",
+		"HapticsPlugin",
+		"KeyboardPlugin",
+		"StatusBarPlugin"
+	]
+}

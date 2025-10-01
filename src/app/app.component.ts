@@ -535,12 +535,10 @@ export class AppComponent implements OnDestroy {
 
         console.log('🎤 Requesting microphone access...');
         try {
+          // iOS-specific audio constraints
+          const audioConstraints = this.getAudioConstraints();
           this.stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            },
+            audio: audioConstraints,
           });
           console.log('✅ Microphone access granted, stream:', this.stream);
         } catch (micError: any) {
@@ -571,8 +569,34 @@ export class AppComponent implements OnDestroy {
           return;
         }
 
-        this.mediaRecorder = new MediaRecorder(this.stream);
-        console.log('🎙️ MediaRecorder created:', this.mediaRecorder);
+        // Use iOS-compatible MediaRecorder options
+        const mimeType = this.getAudioMimeType();
+        const options = { mimeType };
+
+        try {
+          this.mediaRecorder = new MediaRecorder(this.stream, options);
+          console.log(
+            '🎙️ MediaRecorder created with options:',
+            options,
+            this.mediaRecorder
+          );
+        } catch (recorderError) {
+          console.warn(
+            '⚠️ Failed to create MediaRecorder with options, trying without options:',
+            recorderError
+          );
+          // Fallback: try without options (uses default format)
+          try {
+            this.mediaRecorder = new MediaRecorder(this.stream);
+            console.log('🎙️ MediaRecorder created without options (fallback)');
+          } catch (fallbackError) {
+            console.error(
+              '❌ Failed to create MediaRecorder even without options:',
+              fallbackError
+            );
+            throw new Error('MediaRecorder not supported on this device');
+          }
+        }
 
         this.mediaRecorder.ondataavailable = (event) => {
           console.log('📊 Audio data available, size:', event.data.size);
@@ -581,7 +605,10 @@ export class AppComponent implements OnDestroy {
 
         this.mediaRecorder.onstop = async () => {
           console.log('⏹️ Recording stopped, processing audio...');
-          const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
+
+          // Use iOS-compatible audio format
+          const audioType = this.getAudioMimeType();
+          const audioBlob = new Blob(this.chunks, { type: audioType });
           console.log(
             '🎵 Audio blob created, size:',
             audioBlob.size,
@@ -632,78 +659,62 @@ export class AppComponent implements OnDestroy {
     );
     if (!this.isRecording) return;
 
+    // ALWAYS clear buffers when end button is clicked, regardless of state
+    console.log(
+      '🛑 End button clicked - clearing all buffers and resetting state'
+    );
+
+    // Stop recording state immediately
+    this.isRecording = false;
+    this.manuallyStopped = true;
+    this.isAutoRestarting = false;
+    this.isProcessingTranslation = false;
+
+    // Stop all timers and intervals
+    this.stopPeriodicRefresh();
+    this.stopIdleTimeout();
+
+    // Stop the media recorder
+    if (this.mediaRecorder) {
+      try {
+        this.mediaRecorder.stop();
+      } catch (err) {
+        console.warn('Error stopping media recorder:', err);
+      }
+      this.mediaRecorder = undefined;
+    }
+
+    // Clear timeouts
+    if (this.silenceTimeout) {
+      clearTimeout(this.silenceTimeout);
+      this.silenceTimeout = undefined;
+    }
+
+    // Stop all tracks in the stream
+    if (this.stream) {
+      this.stream.getTracks().forEach((track) => {
+        track.stop();
+        track.enabled = false;
+      });
+      this.stream = undefined;
+    }
+
     // Check if there's any speech content before processing
     const hasSpeechContent = this.sentenceBuffer.trim().length > 0;
     const hasAudioChunks = this.chunks.length > 0;
 
     if (!hasSpeechContent && !hasAudioChunks) {
-      // No speech detected - show immediate alert and reset
+      // No speech detected - show alert and clean up
       console.log('No speech detected when stopping recording');
       this.hideAllSpinners();
       this.cleanupBuffers(); // Clean up buffers when no speech detected
       alert('No speech detected. Please speak before clicking End.');
-
-      // Reset recording state
-      this.isRecording = false;
-      this.isRecording = false;
-      this.isAutoRestarting = false;
-      this.manuallyStopped = true;
-      this.isProcessingTranslation = false;
-
-      // Stop periodic refresh and idle timeout
-      this.stopPeriodicRefresh();
-      this.stopIdleTimeout();
-
-      // Stop the media recorder
-      if (this.mediaRecorder) {
-        try {
-          this.mediaRecorder.stop();
-        } catch (err) {
-          console.warn('Error stopping media recorder:', err);
-        }
-        this.mediaRecorder = undefined;
-      }
-
-      // Clear timeouts
-      if (this.silenceTimeout) {
-        clearTimeout(this.silenceTimeout);
-        this.silenceTimeout = undefined;
-      }
-
-      // Clear chunks
-      this.chunks = [];
-
-      // Stop all tracks in the stream
-      if (this.stream) {
-        this.stream.getTracks().forEach((track) => {
-          track.stop();
-          track.enabled = false;
-        });
-        this.stream = undefined;
-      }
-
-      // Clear current text displays
-      this.zone.run(() => {
-        this.currentEnText = '';
-        this.currentKyText = '';
-        this.currentKyInText = '';
-        this.currentEnOutText = '';
-        this.currentEnConfidence = 0;
-        this.currentKyConfidence = 0;
-      });
-
+      this.cdr.detectChanges();
       return; // Exit early - no processing needed
     }
 
-    this.isRecording = false;
-    this.manuallyStopped = true;
-    this.stopPeriodicRefresh();
-    this.stopIdleTimeout();
-
-    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      this.mediaRecorder.stop();
-    }
-
+    // If there is speech content, process it but ensure cleanup happens regardless
+    console.log('Speech content detected, processing audio...');
     this.cdr.detectChanges();
   }
 
@@ -772,6 +783,61 @@ export class AppComponent implements OnDestroy {
     this.cdr.detectChanges();
   }
 
+  private getAudioMimeType(): string {
+    // Check for iOS Safari compatibility
+    if (this.platform.is('ios') || this.isIOSSafari()) {
+      // iOS Safari supports MP4 and WAV
+      if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        console.log('📱 Using audio/mp4 for iOS compatibility');
+        return 'audio/mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+        console.log('📱 Using audio/wav for iOS compatibility');
+        return 'audio/wav';
+      }
+    }
+
+    // Default to webm for other platforms
+    if (MediaRecorder.isTypeSupported('audio/webm')) {
+      console.log('🌐 Using audio/webm for other platforms');
+      return 'audio/webm';
+    }
+
+    // Fallback
+    console.log('⚠️ Using fallback audio format');
+    return 'audio/webm';
+  }
+
+  private isIOSSafari(): boolean {
+    const ua = navigator.userAgent;
+    return (
+      /iPad|iPhone|iPod/.test(ua) &&
+      /Safari/.test(ua) &&
+      !/CriOS|FxiOS|OPiOS|mercury/.test(ua)
+    );
+  }
+
+  private getAudioConstraints(): MediaTrackConstraints {
+    // iOS Safari has limited support for advanced audio constraints
+    if (this.platform.is('ios') || this.isIOSSafari()) {
+      console.log('📱 Using iOS-compatible audio constraints');
+      return {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 44100, // iOS prefers 44.1kHz
+        sampleSize: 16,
+        channelCount: 1, // Mono for better compatibility
+      };
+    }
+
+    // Default constraints for other platforms
+    return {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    };
+  }
+
   private async processAudio(
     audioBlob: Blob,
     audioUrl: string,
@@ -781,6 +847,13 @@ export class AppComponent implements OnDestroy {
     this.hideSpinner('end');
     this.showSpinner('postTranslation', lane);
     this.currentLane = lane;
+
+    // Set a timeout to ensure cleanup happens even if processing gets stuck
+    const cleanupTimeout = setTimeout(() => {
+      console.warn('⚠️ Audio processing timeout - forcing cleanup');
+      this.hideAllSpinners();
+      this.cleanupBuffers();
+    }, 30000); // 30 second timeout
 
     try {
       // Get the target language for transcription
@@ -824,6 +897,29 @@ export class AppComponent implements OnDestroy {
       );
       let transcribedText = transcriptionResult.text;
       const transcriptionConfidence = transcriptionResult.confidence;
+
+      // Check for wrong language detection from backend
+      if (transcriptionResult.wrongLanguage) {
+        console.warn(
+          '🚫 Wrong language detected by backend:',
+          transcriptionResult.message
+        );
+        this.hideAllSpinners();
+        this.cleanupBuffers();
+        alert(
+          transcriptionResult.message ||
+            'Please speak in the selected language.'
+        );
+        return;
+      }
+
+      // Debug logging for transcription issues
+      console.log('🎤 TRANSCRIPTION DEBUG:');
+      console.log('  - Original audio blob size:', audioBlob.size, 'bytes');
+      console.log('  - Audio blob type:', audioBlob.type);
+      console.log('  - Transcribed text:', `"${transcribedText}"`);
+      console.log('  - Transcription confidence:', transcriptionConfidence);
+      console.log('  - Expected language:', transcriptionLanguage);
 
       if (!transcribedText || transcribedText.trim().length === 0) {
         console.warn('Empty transcription received from API');
@@ -963,21 +1059,37 @@ export class AppComponent implements OnDestroy {
 
       if (lane === 'user') {
         translationTargetLanguage = this.selectedPartnerLanguage;
+        console.log('🔄 TRANSLATION DEBUG:');
+        console.log('  - Source text:', `"${transcribedText}"`);
+        console.log('  - Source language:', this.selectedUserLanguage);
+        console.log('  - Target language:', translationTargetLanguage);
+
         translation = await this.svc.translate(
           transcribedText,
           translationTargetLanguage,
           this.selectedUserLanguage
         );
+
+        console.log('  - Translated text:', `"${translation}"`);
+
         this.currentEnText = transcribedText;
         this.currentEnConfidence = transcriptionConfidence;
         this.currentKyText = translation;
       } else {
         translationTargetLanguage = this.selectedUserLanguage;
+        console.log('🔄 TRANSLATION DEBUG:');
+        console.log('  - Source text:', `"${transcribedText}"`);
+        console.log('  - Source language:', this.selectedPartnerLanguage);
+        console.log('  - Target language:', translationTargetLanguage);
+
         translation = await this.svc.translate(
           transcribedText,
           translationTargetLanguage,
           this.selectedPartnerLanguage
         );
+
+        console.log('  - Translated text:', `"${translation}"`);
+
         this.currentKyInText = transcribedText;
         this.currentKyConfidence = transcriptionConfidence;
         this.currentEnOutText = translation;
@@ -1082,7 +1194,14 @@ export class AppComponent implements OnDestroy {
       this.cleanupBuffers(); // Clean up buffers on error
       alert('An error occurred during processing. Please try again.');
     } finally {
+      // Clear the timeout since processing is complete
+      clearTimeout(cleanupTimeout);
+
+      // ALWAYS hide spinners and clean up buffers when end button is clicked
       this.hideAllSpinners();
+      this.cleanupBuffers();
+
+      console.log('🧹 Audio processing completed - buffers cleared');
     }
   }
 
@@ -1277,6 +1396,7 @@ export class AppComponent implements OnDestroy {
     } catch (error) {
       console.error('Error during sentence processing:', error);
       this.hideAllSpinners();
+      this.cleanupBuffers(); // Clean up buffers on error
       alert('An error occurred during processing. Please try again.');
     }
   }
@@ -1773,9 +1893,10 @@ export class AppComponent implements OnDestroy {
     // Simple heuristics for language detection
     const languagePatterns = {
       en: {
-        // English patterns
-        positive:
-          /\b(the|and|or|but|in|on|at|to|for|of|with|by|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|must|shall)\b/i,
+        // English patterns - more comprehensive
+        positive: /[a-zA-Z]/, // Any Latin characters
+        positive2:
+          /\b(the|and|or|but|in|on|at|to|for|of|with|by|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|must|shall|hello|hi|yes|no|ok|okay|good|bad|thank|thanks|please|sorry|excuse|help|what|where|when|why|how|who|which|this|that|here|there|now|then|today|tomorrow|yesterday|morning|afternoon|evening|night|time|day|week|month|year|name|age|old|new|big|small|hot|cold|fast|slow|easy|hard|happy|sad|angry|tired|hungry|thirsty|sick|well|fine|great|awesome|amazing|wonderful|beautiful|nice|lovely|perfect|excellent|fantastic|terrible|awful|horrible|disgusting|delicious|tasty|sweet|sour|bitter|spicy|salty|fresh|clean|dirty|wet|dry|full|empty|open|closed|free|busy|ready|finished|done|start|stop|go|come|leave|stay|wait|hurry|slow|quick|fast|slowly|quickly|carefully|easily|hardly|really|very|quite|pretty|rather|somewhat|totally|completely|absolutely|definitely|probably|maybe|perhaps|certainly|surely|obviously|clearly|exactly|precisely|approximately|about|around|nearly|almost|exactly|just|only|even|still|yet|already|soon|later|early|late|always|never|sometimes|often|usually|rarely|seldom|frequently|occasionally|constantly|continuously|immediately|instantly|suddenly|gradually|slowly|quickly|carefully|easily|hardly|really|very|quite|pretty|rather|somewhat|totally|completely|absolutely|definitely|probably|maybe|perhaps|certainly|surely|obviously|clearly|exactly|precisely|approximately|about|around|nearly|almost|exactly|just|only|even|still|yet|already|soon|later|early|late|always|never|sometimes|often|usually|rarely|seldom|frequently|occasionally|constantly|continuously|immediately|instantly|suddenly|gradually)\b/i,
         // Non-English patterns
         negative: /[а-яё]/i, // Cyrillic
         negative2: /[一-龯]/, // Chinese
@@ -1861,10 +1982,23 @@ export class AppComponent implements OnDestroy {
       return true;
     }
 
-    // If we don't find positive patterns for the expected language, it might be wrong
-    if (!hasPositive && text.length > 10) {
-      console.log('❌ Wrong language detected: no positive patterns found');
-      return true;
+    // For English, be more lenient - if it contains Latin characters, it's likely English
+    if (expectedLanguage === 'en') {
+      if (hasPositive) {
+        console.log('✅ English detected: found Latin characters');
+        return false;
+      }
+      // Only reject if it's very short and has no Latin characters
+      if (text.length < 3) {
+        console.log('❌ English rejected: too short and no Latin characters');
+        return true;
+      }
+    } else {
+      // For other languages, require positive patterns for longer text
+      if (!hasPositive && text.length > 10) {
+        console.log('❌ Wrong language detected: no positive patterns found');
+        return true;
+      }
     }
 
     console.log('✅ Language appears correct');

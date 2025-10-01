@@ -1,33 +1,33 @@
 <!-- Modal Overlay -->
 <div *ngIf="isOpen" class="modal-overlay" (click)="onClose()">
-  <!-- Modal Content -->
-  <div class="modal-content" (click)="$event.stopPropagation()">
-    <!-- Fixed Modal Header -->
-    <div class="modal-header-fixed">
-      <div>
-        <h2 class="modal-title">Conversation History</h2>
-        <p class="modal-subtitle">
-          {{ getTotalConversations() }} conversations •
-          {{ getTotalDuration() }} total duration
-        </p>
-      </div>
-      <button (click)="onClose()" class="close-button">
-        <svg
-          class="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          ></path>
-        </svg>
-      </button>
+  <!-- Fixed Modal Header - Outside of scrollable content -->
+  <div class="modal-header-fixed">
+    <div>
+      <h2 class="modal-title">Conversation History</h2>
+      <p class="modal-subtitle">
+        {{ getTotalConversations() }} conversations •
+        {{ getTotalDuration() }} total duration
+      </p>
     </div>
+    <button (click)="onClose()" class="close-button">
+      <svg
+        class="w-6 h-6"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M6 18L18 6M6 6l12 12"
+        ></path>
+      </svg>
+    </button>
+  </div>
 
+  <!-- Modal Content - Scrollable area -->
+  <div class="modal-content" (click)="$event.stopPropagation()">
     <!-- Search and Controls -->
     <div class="modal-body">
       <div class="flex flex-col sm:flex-row gap-4">

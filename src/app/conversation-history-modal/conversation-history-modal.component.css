@@ -10,40 +10,23 @@
   -webkit-backdrop-filter: blur(4px);
   z-index: 9999;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem;
+  flex-direction: column;
   animation: fadeIn 0.2s ease-out;
-}
-
-/* Android specific adjustments */
-@media screen and (max-width: 768px) {
-  .modal-overlay {
-    padding-top: max(env(safe-area-inset-top), 1rem);
-    align-items: flex-start;
-  }
-}
-
-/* iOS specific adjustments */
-@supports (-webkit-touch-callout: none) {
-  .modal-overlay {
-    padding: 0.25rem;
-    align-items: flex-start;
-    padding-top: max(env(safe-area-inset-top), 0.5rem);
-  }
 }
 
 .modal-content {
   background: white;
-  border-radius: 0.75rem;
+  border-radius: 0 0 0.75rem 0.75rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   max-width: 64rem;
   width: 100%;
-  max-height: calc(100vh - 1rem);
+  flex: 1;
   display: flex;
   flex-direction: column;
   animation: slideIn 0.3s ease-out;
   overflow: hidden;
+  margin: 0 auto;
+  margin-top: 0;
 }
 
 /* iOS specific modal sizing */
@@ -132,15 +115,24 @@
   background: white;
   z-index: 10001;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  /* Ensure header is below status bar */
-  margin-top: env(safe-area-inset-top);
+  border-radius: 0.75rem 0.75rem 0 0;
+  /* Respect safe area insets */
+  padding-top: max(env(safe-area-inset-top), 1.5rem);
+  max-width: 64rem;
+  margin: 0 auto;
+  width: calc(100% - 2rem);
+  left: 1rem;
+  right: 1rem;
 }
 
 /* Android specific header adjustments */
 @media screen and (max-width: 768px) {
   .modal-header-fixed {
-    margin-top: max(env(safe-area-inset-top), 80px);
     padding: 1rem;
+    padding-top: max(env(safe-area-inset-top), 1rem);
+    width: calc(100% - 1rem);
+    left: 0.5rem;
+    right: 0.5rem;
   }
 }
 
@@ -185,14 +177,14 @@
   border-bottom: 1px solid #e5e7eb;
   flex-shrink: 0;
   overflow-y: visible;
-  margin-top: calc(80px + env(safe-area-inset-top)); /* Account for fixed header + status bar */
+  margin-top: calc(80px + env(safe-area-inset-top)); /* Account for fixed header + safe area */
 }
 
 /* Android specific body adjustments */
 @media screen and (max-width: 768px) {
   .modal-body {
-    margin-top: calc(max(env(safe-area-inset-top), 80px) + 80px);
     padding: 1rem;
+    margin-top: calc(70px + env(safe-area-inset-top)); /* Smaller header on mobile + safe area */
   }
 }
 

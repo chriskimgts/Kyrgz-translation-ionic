@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { environment } from '../../environments/environment';
 
 // Declare Capacitor types for TypeScript
 declare global {
@@ -23,75 +24,10 @@ export class TranslatorService {
   }
 
   private getBaseUrl(): string {
-    // Debug information
-    console.log('🔍 API Detection Debug Info:');
-    console.log('  - window.Capacitor exists:', !!window.Capacitor);
-    console.log(
-      '  - window.Capacitor.isNativePlatform():',
-      window.Capacitor?.isNativePlatform?.()
-    );
-    console.log('  - window.location.hostname:', window.location.hostname);
-    console.log('  - window.navigator.userAgent:', window.navigator.userAgent);
-    console.log('  - window.location.origin:', window.location.origin);
-    console.log('  - window.location.protocol:', window.location.protocol);
-    console.log('  - window.location.href:', window.location.href);
-    console.log('  - navigator.onLine:', navigator.onLine);
-    console.log('  - typeof fetch:', typeof fetch);
-    console.log('  - window.location.search:', window.location.search);
-    console.log('  - window.location.hash:', window.location.hash);
-    console.log('  - document.URL:', document.URL);
-    console.log('  - document.baseURI:', document.baseURI);
-
-    // SIMPLIFIED LOGIC: Always use production API for mobile devices and production web
-    // Only use local API for localhost development on desktop
-
-    // Check if we're in a mobile app (Android or iOS)
-    const isMobileApp =
-      window.Capacitor?.isNativePlatform?.() ||
-      window.navigator.userAgent.includes('Capacitor') ||
-      window.location.origin.includes('capacitor://') ||
-      window.location.origin.includes('ionic://') ||
-      window.location.origin.includes('https://localhost') ||
-      window.location.origin.includes('http://localhost');
-
-    if (isMobileApp) {
-      console.log('🔍 Detected mobile app (Android/iOS)');
-
-      // Check if we're on iOS specifically
-      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-
-      if (isIOS) {
-        console.log('🍎 Detected iOS - using host machine IP');
-        // iOS simulator needs to use the host machine's IP address
-        // instead of localhost to reach the local server
-        const url = 'http://192.168.1.119:8788';
-        console.log('🌐 Using LOCAL API for iOS:', url);
-        return url;
-      } else {
-        console.log('🤖 Detected Android - using production API');
-        const url =
-          'https://live-translator-api-714048340715.us-central1.run.app';
-        console.log('🌐 Using PRODUCTION API for Android:', url);
-        return url;
-      }
-    }
-
-    // Check if we're running on localhost (desktop development)
-    if (
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1'
-    ) {
-      console.log('🔍 Running in localhost web browser');
-      const url = 'http://localhost:8788';
-      console.log('🌐 Using local API:', url);
-      return url;
-    }
-
-    // For everything else (production web, etc.) - use production API
-    console.log('🔍 Using production API for all other cases');
-    const url = 'https://live-translator-api-714048340715.us-central1.run.app';
-    console.log('🌐 Using PRODUCTION API:', url);
-    return url;
+    // Use environment configuration
+    const apiUrl = environment.apiUrl;
+    console.log('🌐 Using API URL from environment:', apiUrl);
+    return apiUrl;
   }
   private isPlayingAudio = false;
 
@@ -212,6 +148,8 @@ export class TranslatorService {
       return {
         text: result.text as string,
         confidence: result.confidence as number,
+        wrongLanguage: result.wrongLanguage as boolean,
+        message: result.message as string,
       };
     } catch (error) {
       console.error('💥 Transcription error:', error);

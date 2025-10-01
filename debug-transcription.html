@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcription Debug Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Transcription Debug Tool</h1>
+        <p>This tool helps debug the "hurry" vs "thank you" transcription issue.</p>
+        
+        <div class="test-section">
+            <h3>Test Cases</h3>
+            <p>Try saying these words clearly into your microphone:</p>
+            <ul>
+                <li><strong>hurry</strong> - should transcribe as "hurry"</li>
+                <li><strong>thank you</strong> - should transcribe as "thank you"</li>
+                <li><strong>hello</strong> - should transcribe as "hello"</li>
+                <li><strong>quick</strong> - should transcribe as "quick"</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>Audio Recording Test</h3>
+            <button id="startTest">Start Recording Test</button>
+            <button id="stopTest" disabled>Stop Recording</button>
+            <div id="status" class="status"></div>
+            <div id="audioPreview"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Transcription Test</h3>
+            <button id="testTranscription" disabled>Test Transcription</button>
+            <div id="transcriptionResult"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Debug Log</h3>
+            <button id="clearLog">Clear Log</button>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordedBlob;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'success') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        document.getElementById('startTest').addEventListener('click', async () => {
+            try {
+                log('🎤 Requesting microphone access...');
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    log(`✅ Recording stopped. Blob size: ${recordedBlob.size} bytes`);
+                    log(`📁 Blob type: ${recordedBlob.type}`);
+                    
+                    // Create audio preview
+                    const audioUrl = URL.createObjectURL(recordedBlob);
+                    const audioPreview = document.getElementById('audioPreview');
+                    audioPreview.innerHTML = `
+                        <p>Recorded Audio:</p>
+                        <audio controls src="${audioUrl}"></audio>
+                    `;
+                    
+                    document.getElementById('testTranscription').disabled = false;
+                    updateStatus('Recording complete! Click "Test Transcription" to test.', 'success');
+                };
+
+                mediaRecorder.start();
+                log('🔴 Recording started...');
+                updateStatus('Recording... Speak clearly into your microphone', 'warning');
+                
+                document.getElementById('startTest').disabled = true;
+                document.getElementById('stopTest').disabled = false;
+                
+            } catch (error) {
+                log(`❌ Error accessing microphone: ${error.message}`);
+                updateStatus('Error accessing microphone', 'error');
+            }
+        });
+
+        document.getElementById('stopTest').addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                log('⏹️ Stopping recording...');
+                
+                // Stop all tracks
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+            
+            document.getElementById('startTest').disabled = false;
+            document.getElementById('stopTest').disabled = true;
+        });
+
+        document.getElementById('testTranscription').addEventListener('click', async () => {
+            if (!recordedBlob) {
+                updateStatus('No audio recorded', 'error');
+                return;
+            }
+
+            try {
+                log('🔄 Testing transcription...');
+                updateStatus('Testing transcription...', 'warning');
+
+                const formData = new FormData();
+                formData.append('audio', recordedBlob, 'test.webm');
+                formData.append('language', 'en');
+                formData.append('translateToEnglish', 'false');
+
+                const response = await fetch('https://live-translator-api-714048340715.us-central1.run.app/api/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                log(`📝 Transcription result: "${result.text}"`);
+                log(`📊 Confidence: ${result.confidence}`);
+                
+                const resultDiv = document.getElementById('transcriptionResult');
+                resultDiv.innerHTML = `
+                    <h4>Transcription Result:</h4>
+                    <p><strong>Text:</strong> "${result.text}"</p>
+                    <p><strong>Confidence:</strong> ${result.confidence}</p>
+                    <p><strong>Expected:</strong> "hurry" (if you said hurry)</p>
+                `;
+
+                if (result.text.toLowerCase().includes('hurry')) {
+                    updateStatus('✅ Successfully transcribed as "hurry"', 'success');
+                } else if (result.text.toLowerCase().includes('thank')) {
+                    updateStatus('❌ Transcribed as "thank you" instead of "hurry"', 'error');
+                    log('🐛 ISSUE: "hurry" was transcribed as "thank you"');
+                } else {
+                    updateStatus(`⚠️ Transcribed as "${result.text}"`, 'warning');
+                }
+
+            } catch (error) {
+                log(`❌ Transcription error: ${error.message}`);
+                updateStatus('Transcription failed', 'error');
+            }
+        });
+
+        document.getElementById('clearLog').addEventListener('click', () => {
+            document.getElementById('log').textContent = '';
+        });
+
+        // Initialize
+        log('🚀 Debug tool initialized');
+        log('📋 Instructions:');
+        log('1. Click "Start Recording Test"');
+        log('2. Say "hurry" clearly into your microphone');
+        log('3. Click "Stop Recording"');
+        log('4. Click "Test Transcription"');
+        log('5. Check if it transcribes correctly');
+    </script>
+</body>
+</html>
