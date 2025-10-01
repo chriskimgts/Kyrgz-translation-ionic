@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Kyrgz-translation-ionic</string>
-    <string name="title_activity_main">Kyrgz-translation-ionic</string>
-    <string name="package_name">com.kyrgz.translation</string>
-    <string name="custom_url_scheme">com.kyrgz.translation</string>
-</resources>
