@@ -19,7 +19,8 @@ export interface ConversationHistoryEntry {
   providedIn: 'root',
 })
 export class ConversationHistoryService {
-  private readonly STORAGE_KEY = 'conversationHistory';
+  private readonly STORAGE_KEY_PREFIX = 'conversationHistory_';
+  private currentUserId: string = 'anonymous'; // Default user ID
   private historySubject = new BehaviorSubject<ConversationHistoryEntry[]>([]);
   public history$ = this.historySubject.asObservable();
 
@@ -27,9 +28,26 @@ export class ConversationHistoryService {
     this.loadHistoryFromStorage();
   }
 
+  // Set the current user and load their specific history
+  setCurrentUser(userId: string): void {
+    console.log('📝 Setting conversation history for user:', userId);
+    this.currentUserId = userId || 'anonymous';
+    this.loadHistoryFromStorage();
+  }
+
+  // Get the storage key for the current user
+  private getStorageKey(): string {
+    return this.STORAGE_KEY_PREFIX + this.currentUserId;
+  }
+
   private loadHistoryFromStorage(): void {
     try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
+      const storageKey = this.getStorageKey();
+      const stored = localStorage.getItem(storageKey);
+      console.log(
+        `📂 Loading history for user ${this.currentUserId} from key: ${storageKey}`
+      );
+
       if (stored) {
         const history = JSON.parse(stored);
 
@@ -41,8 +59,12 @@ export class ConversationHistoryService {
         }));
 
         this.historySubject.next(validatedHistory);
+        console.log(
+          `✅ Loaded ${validatedHistory.length} conversations for user ${this.currentUserId}`
+        );
       } else {
         this.historySubject.next([]);
+        console.log(`📭 No history found for user ${this.currentUserId}`);
       }
     } catch (error) {
       console.error('Error loading conversation history:', error);
@@ -52,7 +74,11 @@ export class ConversationHistoryService {
 
   private saveHistoryToStorage(history: ConversationHistoryEntry[]): void {
     try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(history));
+      const storageKey = this.getStorageKey();
+      localStorage.setItem(storageKey, JSON.stringify(history));
+      console.log(
+        `💾 Saved ${history.length} conversations for user ${this.currentUserId}`
+      );
     } catch (error) {
       console.error('Error saving conversation history:', error);
     }

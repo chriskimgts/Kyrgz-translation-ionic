@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test Auth0 Callback</title>
+  </head>
+  <body>
+    <h1>Testing Auth0 Callback</h1>
+    <p>This simulates what Auth0 would redirect to:</p>
+    <a
+      href="http://localhost:4201/callback#access_token=test_access_token&id_token=test_id_token&state=test_state&token_type=Bearer&expires_in=3600"
+      target="_blank"
+    >
+      Test Callback URL
+    </a>
+
+    <h2>Expected Behavior:</h2>
+    <ul>
+      <li>Should show "Processing Authentication..." loading screen</li>
+      <li>Should store tokens in localStorage</li>
+      <li>Should attempt to redirect to mobile app</li>
+      <li>Should show console logs</li>
+    </ul>
+
+    <h2>Check Console:</h2>
+    <p>
+      Open browser developer tools and check the console for logs starting with
+      🔗
+    </p>
+  </body>
+</html>

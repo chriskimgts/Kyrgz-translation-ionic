@@ -38,15 +38,16 @@ if [ $? -eq 0 ]; then
 
         if [ $? -eq 0 ]; then
             echo "✅ Frontend deployment successful!"
-            
+
             # Deploy to Cloud Run (backend)
             echo "☁️ Deploying backend to Cloud Run..."
+            cd server
             gcloud run deploy live-translator-api \
                 --source . \
                 --region us-central1 \
                 --allow-unauthenticated \
-                --clear-base-image \
                 --platform managed
+            cd ..
 
             if [ $? -eq 0 ]; then
                 echo "✅ Monolithic deployment successful!"

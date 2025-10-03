@@ -80,6 +80,9 @@ export class AppComponent implements OnDestroy {
   private silenceTimeout?: any;
   private periodicRefreshInterval?: any;
   private idleTimeout?: any;
+  private speechActivityTimeout?: any;
+  private lastSpeechTime = 0;
+  private readonly SPEECH_SILENCE_THRESHOLD = 3000; // 3 seconds of silence before stopping
 
   // Constants
   private readonly USER_LANGUAGE_KEY = 'selectedUserLanguage';
@@ -181,6 +184,24 @@ export class AppComponent implements OnDestroy {
     this.authService.currentUser$.subscribe((user: User | null) => {
       this.currentUser = user;
       this.isLoggedIn = !!user;
+
+      // Update conversation history when user changes
+      if (user && user.userId) {
+        console.log(
+          '👤 User logged in, loading their conversation history:',
+          user.userId
+        );
+        this.conversationHistoryService.setCurrentUser(user.userId);
+      } else {
+        console.log('👤 User logged out, resetting to anonymous history');
+        this.conversationHistoryService.setCurrentUser('anonymous');
+      }
+    });
+
+    // Also register a callback for when AuthService notifies user change
+    this.authService.onUserChange((userId: string) => {
+      console.log('🔄 User changed callback triggered:', userId);
+      this.conversationHistoryService.setCurrentUser(userId);
     });
   }
 
@@ -535,12 +556,30 @@ export class AppComponent implements OnDestroy {
 
         console.log('🎤 Requesting microphone access...');
         try {
-          // iOS-specific audio constraints
+          // Get appropriate audio constraints for the platform
           const audioConstraints = this.getAudioConstraints();
+          console.log('🎤 Audio constraints:', audioConstraints);
+
           this.stream = await navigator.mediaDevices.getUserMedia({
             audio: audioConstraints,
           });
           console.log('✅ Microphone access granted, stream:', this.stream);
+
+          // Log stream details for debugging
+          if (this.stream) {
+            const audioTracks = this.stream.getAudioTracks();
+            console.log('🎤 Audio tracks:', audioTracks.length);
+            audioTracks.forEach((track, index) => {
+              console.log(`🎤 Track ${index}:`, {
+                label: track.label,
+                enabled: track.enabled,
+                muted: track.muted,
+                readyState: track.readyState,
+                settings: track.getSettings(),
+                constraints: track.getConstraints(),
+              });
+            });
+          }
         } catch (micError: any) {
           console.error('❌ Microphone access denied or failed:', micError);
           this.isRecording = false;
@@ -601,6 +640,11 @@ export class AppComponent implements OnDestroy {
         this.mediaRecorder.ondataavailable = (event) => {
           console.log('📊 Audio data available, size:', event.data.size);
           this.chunks.push(event.data);
+
+          // Check for speech activity - if we have audio data, assume speech is happening
+          if (event.data.size > 0) {
+            this.detectSpeechActivity();
+          }
         };
 
         this.mediaRecorder.onstop = async () => {
@@ -622,10 +666,13 @@ export class AppComponent implements OnDestroy {
         };
 
         console.log('🚀 Starting MediaRecorder...');
-        this.mediaRecorder.start(1000); // Start recording, collect data every 1 second
+        this.mediaRecorder.start(500); // Start recording, collect data every 500ms for faster processing
         this.isRecording = true;
         this.startPeriodicRefresh();
         this.startIdleTimeout();
+
+        // Initialize speech activity detection
+        this.lastSpeechTime = Date.now();
         console.log(
           '✅ Recording started for lane:',
           lane,
@@ -690,6 +737,9 @@ export class AppComponent implements OnDestroy {
       this.silenceTimeout = undefined;
     }
 
+    // Stop speech activity detection
+    this.stopSpeechActivityDetection();
+
     // Stop all tracks in the stream
     if (this.stream) {
       this.stream.getTracks().forEach((track) => {
@@ -735,9 +785,10 @@ export class AppComponent implements OnDestroy {
 
   private startIdleTimeout() {
     this.stopIdleTimeout();
-    const idleDuration = this.isMobile ? 10000 : 15000; // 10s for mobile, 15s for desktop
+    // Extended timeout - only stop if no speech detected for a long time
+    const idleDuration = this.isMobile ? 120000 : 180000; // 2 minutes for mobile, 3 minutes for desktop
     this.idleTimeout = setTimeout(() => {
-      console.log('Idle timeout reached. Auto-stopping recording.');
+      console.log('Extended idle timeout reached. Auto-stopping recording.');
       this.stopRecording();
     }, idleDuration);
   }
@@ -746,6 +797,32 @@ export class AppComponent implements OnDestroy {
     if (this.idleTimeout) {
       clearTimeout(this.idleTimeout);
       this.idleTimeout = undefined;
+    }
+  }
+
+  // Speech activity detection - extends recording while person is speaking
+  private detectSpeechActivity() {
+    this.lastSpeechTime = Date.now();
+
+    // Clear any existing speech activity timeout
+    if (this.speechActivityTimeout) {
+      clearTimeout(this.speechActivityTimeout);
+    }
+
+    // Set a new timeout to stop recording after silence
+    this.speechActivityTimeout = setTimeout(() => {
+      const silenceDuration = Date.now() - this.lastSpeechTime;
+      console.log(
+        `🔇 Silence detected for ${silenceDuration}ms, stopping recording...`
+      );
+      this.stopRecording();
+    }, this.SPEECH_SILENCE_THRESHOLD);
+  }
+
+  private stopSpeechActivityDetection() {
+    if (this.speechActivityTimeout) {
+      clearTimeout(this.speechActivityTimeout);
+      this.speechActivityTimeout = undefined;
     }
   }
 
@@ -911,7 +988,7 @@ export class AppComponent implements OnDestroy {
           (transcriptionResult as any).warning
         );
         // Show auto-dismissing toast (2 seconds) but CONTINUE translation
-        this.showToast((transcriptionResult as any).warning);
+        // Toast removed for performance
       }
 
       // Debug logging for transcription issues
@@ -926,7 +1003,8 @@ export class AppComponent implements OnDestroy {
         console.warn('Empty transcription received from API');
         this.hideAllSpinners();
         this.cleanupBuffers(); // Clean up buffers on empty transcription
-        this.showToast(
+
+        this.showTranslationError(
           'Could not transcribe speech. Please try speaking again.'
         );
         return;
@@ -948,7 +1026,7 @@ export class AppComponent implements OnDestroy {
           transcribedText.split('WRONG_LANGUAGE_DETECTED:')[1]?.trim() ||
           'Please speak in the selected language.';
         console.log('📢 Showing user message:', userMessage);
-        this.showToast(userMessage);
+        this.showTranslationError(userMessage);
         return;
       } else {
         console.log(
@@ -956,35 +1034,16 @@ export class AppComponent implements OnDestroy {
         );
       }
 
-      // Fallback: Frontend language detection if backend doesn't work
-      // Skip frontend detection for English to avoid false positives with accents
-      if (transcriptionLanguage !== 'en') {
-        const isWrongLanguage = this.detectWrongLanguageFrontend(
-          transcribedText,
-          transcriptionLanguage
-        );
-        if (isWrongLanguage) {
-          console.warn('🚫 Frontend wrong language detection triggered');
-          // Don't stop - just show toast and continue
-          const userMessage = this.getWrongLanguageMessage(
-            transcriptionLanguage
-          );
-          console.log('📢 Showing frontend user message:', userMessage);
-          this.showToast(userMessage);
-          // Continue with translation instead of returning
-        }
-      } else {
-        console.log(
-          '⏭️ Skipping frontend detection for English (backend handles it)'
-        );
-      }
+      // Frontend language detection removed for performance
 
       // Deadlock detection - check for system errors that could cause deadlocks
       if (this.isDeadlockTranslation(transcribedText)) {
         console.warn('🚫 Deadlock translation detected, stopping process');
         this.hideAllSpinners();
         this.cleanupBuffers();
-        this.showToast('Translation deadlock detected. Please try again.');
+        this.showTranslationError(
+          'Translation deadlock detected. Please try again.'
+        );
         return;
       }
 
@@ -1067,7 +1126,9 @@ export class AppComponent implements OnDestroy {
         translation = await this.svc.translate(
           transcribedText,
           translationTargetLanguage,
-          this.selectedUserLanguage
+          this.selectedUserLanguage,
+          this.selectedUserLanguage,
+          this.selectedPartnerLanguage
         );
 
         console.log('  - Translated text:', `"${translation}"`);
@@ -1085,6 +1146,8 @@ export class AppComponent implements OnDestroy {
         translation = await this.svc.translate(
           transcribedText,
           translationTargetLanguage,
+          this.selectedPartnerLanguage,
+          this.selectedUserLanguage,
           this.selectedPartnerLanguage
         );
 
@@ -1099,7 +1162,9 @@ export class AppComponent implements OnDestroy {
         console.warn('Empty translation received from API');
         this.hideAllSpinners();
         this.cleanupBuffers(); // Clean up buffers on empty translation
-        this.showToast('Translation failed. Please try speaking again.');
+        this.showTranslationError(
+          'Translation failed. Please try speaking again.'
+        );
         return;
       }
 
@@ -1114,7 +1179,7 @@ export class AppComponent implements OnDestroy {
         console.warn('Empty TTS audio received from API');
         this.hideAllSpinners();
         this.cleanupBuffers(); // Clean up buffers on TTS failure
-        this.showToast(
+        this.showTranslationError(
           'Failed to generate audio for translation. Please try again.'
         );
         return;
@@ -1137,8 +1202,11 @@ export class AppComponent implements OnDestroy {
         0.9 // Minimum confidence of 90% (increased from 80%)
       );
 
+      // Use the transcribed text directly without language detection
+      const finalTranscribedText = transcribedText;
+
       const historyEntry: Omit<ConversationHistoryEntry, 'id' | 'timestamp'> = {
-        originalText: transcribedText,
+        originalText: finalTranscribedText,
         translatedText: translation,
         audioUrl: ttsResult.audioUrl,
         audioData: audioData,
@@ -1159,7 +1227,7 @@ export class AppComponent implements OnDestroy {
       // Create ConversationEntry for local arrays
       const conversationEntry: ConversationEntry = {
         id: this.conversationId++,
-        original: transcribedText,
+        original: finalTranscribedText,
         translated: translation,
         timestamp: new Date(),
         audioUrl: ttsResult.audioUrl,
@@ -1194,7 +1262,9 @@ export class AppComponent implements OnDestroy {
       console.error('Error during audio processing:', error);
       this.hideAllSpinners();
       this.cleanupBuffers(); // Clean up buffers on error
-      this.showToast('An error occurred during processing. Please try again.');
+      this.showTranslationError(
+        'An error occurred during processing. Please try again.'
+      );
     } finally {
       // Clear the timeout since processing is complete
       clearTimeout(cleanupTimeout);
@@ -1237,7 +1307,9 @@ export class AppComponent implements OnDestroy {
         if (!translation || translation.trim().length === 0) {
           console.warn('Empty translation received from API');
           this.hideAllSpinners();
-          this.showToast('Translation failed. Please try speaking again.');
+          this.showTranslationError(
+            'Translation failed. Please try speaking again.'
+          );
           return;
         }
 
@@ -1257,7 +1329,7 @@ export class AppComponent implements OnDestroy {
         if (!ttsResult || !ttsResult.audioUrl) {
           console.warn('Empty TTS audio received from API');
           this.hideAllSpinners();
-          this.showToast(
+          this.showTranslationError(
             'Failed to generate audio for translation. Please try again.'
           );
           return;
@@ -1325,7 +1397,9 @@ export class AppComponent implements OnDestroy {
         if (!translation || translation.trim().length === 0) {
           console.warn('Empty translation received from API');
           this.hideAllSpinners();
-          this.showToast('Translation failed. Please try speaking again.');
+          this.showTranslationError(
+            'Translation failed. Please try speaking again.'
+          );
           return;
         }
 
@@ -1345,7 +1419,7 @@ export class AppComponent implements OnDestroy {
         if (!ttsResult || !ttsResult.audioUrl) {
           console.warn('Empty TTS audio received from API');
           this.hideAllSpinners();
-          this.showToast(
+          this.showTranslationError(
             'Failed to generate audio for translation. Please try again.'
           );
           return;
@@ -1403,7 +1477,9 @@ export class AppComponent implements OnDestroy {
       console.error('Error during sentence processing:', error);
       this.hideAllSpinners();
       this.cleanupBuffers(); // Clean up buffers on error
-      this.showToast('An error occurred during processing. Please try again.');
+      this.showTranslationError(
+        'An error occurred during processing. Please try again.'
+      );
     }
   }
 
@@ -1418,7 +1494,7 @@ export class AppComponent implements OnDestroy {
     // Check word limit (200 words)
     const wordCount = text.split(/\s+/).length;
     if (wordCount > 200) {
-      this.showToast(
+      this.showTranslationError(
         'Text exceeds 200 words limit. Please shorten your message.'
       );
       return;
@@ -1440,18 +1516,20 @@ export class AppComponent implements OnDestroy {
       // Show translating spinner
       this.showSpinner('postTranslation', 'user');
 
-      // Use the same translation flow as speech
+      // Use the same translation flow as speech with language context
       const translation = await this.svc.translate(
         text,
         this.selectedPartnerLanguage,
-        this.selectedUserLanguage
+        this.selectedUserLanguage,
+        this.selectedUserLanguage,
+        this.selectedPartnerLanguage
       );
 
       // Check if translation is empty or invalid
       if (!translation || translation.trim().length === 0) {
         console.warn('Empty translation received from API');
         this.hideAllSpinners();
-        this.showToast('Translation failed. Please try again.');
+        // this.showToast('Translation failed. Please try again.');
         return;
       }
 
@@ -1471,7 +1549,7 @@ export class AppComponent implements OnDestroy {
       if (!ttsResult || !ttsResult.audioUrl) {
         console.warn('Empty TTS audio received from API');
         this.hideAllSpinners();
-        this.showToast(
+        this.showTranslationError(
           'Failed to generate audio for translation. Please try again.'
         );
         return;
@@ -1532,11 +1610,7 @@ export class AppComponent implements OnDestroy {
         name: error instanceof Error ? error.name : 'Unknown',
       });
       this.hideAllSpinners();
-      this.showToast(
-        `Failed to translate text: ${
-          error instanceof Error ? error.message : String(error)
-        }. Please try again.`
-      );
+      this.showTranslationError('Failed to translate text. Please try again.');
     }
   }
 
@@ -1551,7 +1625,7 @@ export class AppComponent implements OnDestroy {
     // Check word limit (200 words)
     const wordCount = text.split(/\s+/).length;
     if (wordCount > 200) {
-      this.showToast(
+      this.showTranslationError(
         'Text exceeds 200 words limit. Please shorten your message.'
       );
       return;
@@ -1573,9 +1647,11 @@ export class AppComponent implements OnDestroy {
       // Show translating spinner
       this.showSpinner('postTranslation', 'partner');
 
-      // Use the same translation flow as speech
+      // Use the same translation flow as speech with language context
       const translation = await this.svc.translate(
         text,
+        this.selectedUserLanguage,
+        this.selectedPartnerLanguage,
         this.selectedUserLanguage,
         this.selectedPartnerLanguage
       );
@@ -1584,7 +1660,7 @@ export class AppComponent implements OnDestroy {
       if (!translation || translation.trim().length === 0) {
         console.warn('Empty translation received from API');
         this.hideAllSpinners();
-        this.showToast('Translation failed. Please try again.');
+        // this.showToast('Translation failed. Please try again.');
         return;
       }
 
@@ -1604,7 +1680,7 @@ export class AppComponent implements OnDestroy {
       if (!ttsResult || !ttsResult.audioUrl) {
         console.warn('Empty TTS audio received from API');
         this.hideAllSpinners();
-        this.showToast(
+        this.showTranslationError(
           'Failed to generate audio for translation. Please try again.'
         );
         return;
@@ -1665,11 +1741,7 @@ export class AppComponent implements OnDestroy {
         name: error instanceof Error ? error.name : 'Unknown',
       });
       this.hideAllSpinners();
-      this.showToast(
-        `Failed to translate text: ${
-          error instanceof Error ? error.message : String(error)
-        }. Please try again.`
-      );
+      this.showTranslationError('Failed to translate text. Please try again.');
     }
   }
 
@@ -1701,7 +1773,7 @@ export class AppComponent implements OnDestroy {
 
     this.currentAudio.play().catch((error) => {
       console.error('Audio playback failed:', error);
-      this.showToast('Unable to play audio: ' + error.message);
+      this.showTranslationError('Unable to play audio: ' + error.message);
     });
 
     // Clean up when audio ends
@@ -1870,15 +1942,54 @@ export class AppComponent implements OnDestroy {
    */
   private getLanguageSystemPrompt(language: string): string {
     const languagePrompts: { [key: string]: string } = {
-      en: `You are a speech-to-text system for a real-time translation app. ONLY transcribe English speech. If the speech is NOT in English, return "WRONG_LANGUAGE_DETECTED: Please speak in English" instead of transcribing. Return only the English text that was spoken. This transcription will be used for translation purposes.`,
-      ko: `You are a speech-to-text system for a real-time translation app. ONLY transcribe Korean speech (한국어). If the speech is NOT in Korean, return "WRONG_LANGUAGE_DETECTED: 한국어로 말해주세요" instead of transcribing. Return only the Korean text that was spoken. This transcription will be used for translation purposes.`,
-      zh: `You are a speech-to-text system for a real-time translation app. ONLY transcribe Chinese speech (中文). If the speech is NOT in Chinese, return "WRONG_LANGUAGE_DETECTED: 请说中文" instead of transcribing. Return only the Chinese text that was spoken. This transcription will be used for translation purposes.`,
-      ky: `You are a speech-to-text system for a real-time translation app. ONLY transcribe Kyrgyz speech (Кыргызча). If the speech is NOT in Kyrgyz (especially if it sounds like Kazakh), return "WRONG_LANGUAGE_DETECTED: Кыргызча сүйлөңүз" instead of transcribing. Return only the Kyrgyz text that was spoken. This transcription will be used for translation purposes.`,
-      ru: `You are a speech-to-text system for a real-time translation app. ONLY transcribe Russian speech (Русский). If the speech is NOT in Russian, return "WRONG_LANGUAGE_DETECTED: Говорите по-русски" instead of transcribing. Return only the Russian text that was spoken. This transcription will be used for translation purposes.`,
-      kk: `You are a speech-to-text system for a real-time translation app. ONLY transcribe Kazakh speech (Қазақша). If the speech is NOT in Kazakh (especially if it sounds like Kyrgyz), return "WRONG_LANGUAGE_DETECTED: Қазақша сөйлеңіз" instead of transcribing. Return only the Kazakh text that was spoken. This transcription will be used for translation purposes.`,
-      tg: `You are a speech-to-text system for a real-time translation app. ONLY transcribe Tajik speech (Тоҷикӣ). If the speech is NOT in Tajik, return "WRONG_LANGUAGE_DETECTED: Тоҷикӣ гап занед" instead of transcribing. Return only the Tajik text that was spoken. This transcription will be used for translation purposes.`,
-      tk: `You are a speech-to-text system for a real-time translation app. ONLY transcribe Turkmen speech (Türkmençe). If the speech is NOT in Turkmen, return "WRONG_LANGUAGE_DETECTED: Türkmençe gürleň" instead of transcribing. Return only the Turkmen text that was spoken. This transcription will be used for translation purposes.`,
-      uz: `You are a speech-to-text system for a real-time translation app. ONLY transcribe Uzbek speech (O'zbekcha). If the speech is NOT in Uzbek, return "WRONG_LANGUAGE_DETECTED: O'zbekcha gapiring" instead of transcribing. Return only the Uzbek text that was spoken. This transcription will be used for translation purposes.`,
+      en: `You are an English speech-to-text system. You MUST transcribe ONLY English speech using ONLY Latin script (a-z A-Z).
+
+CRITICAL RULES:
+1. ONLY use Latin letters: a b c d e f g h i j k l m n o p q r s t u v w x y z
+2. Common English words: "hello", "thank you", "good", "how", "what", "cat", "dog", "yes", "no"
+3. If you hear ANY non-English speech (Kyrgyz, Korean, Chinese, etc.), return "WRONG_LANGUAGE_DETECTED: Please speak in English only"
+4. NEVER transcribe Cyrillic, Hangul, or Chinese characters
+
+Examples of CORRECT English transcription:
+- "hello world" → "hello world"
+- "thank you very much" → "thank you very much"
+- "cat-cat, bitch-cat" → "cat-cat, bitch-cat"
+
+Examples of WRONG input that should trigger error:
+- "салам" → "WRONG_LANGUAGE_DETECTED: Please speak in English only"
+- "안녕하세요" → "WRONG_LANGUAGE_DETECTED: Please speak in English only"
+- "你好" → "WRONG_LANGUAGE_DETECTED: Please speak in English only"
+
+If you cannot transcribe in pure English, return "WRONG_LANGUAGE_DETECTED: Please speak in English only"`,
+      ko: `Transcribe Korean speech (한국어) accurately using ONLY Hangul script. Common words: "안녕하세요" (hello), "감사합니다" (thank you), "좋다" (good), "어떻게" (how), "무엇" (what). NEVER mix scripts - use only Hangul letters. If not Korean, return "WRONG_LANGUAGE_DETECTED: 한국어로만 말해주세요".`,
+      zh: `Transcribe Chinese speech (中文) accurately. Common words: "你好" (hello), "谢谢" (thank you), "好" (good), "怎么" (how), "什么" (what). If not Chinese, return "WRONG_LANGUAGE_DETECTED: 请只说中文".`,
+      ky: `You are a Kyrgyz speech-to-text system. You MUST transcribe ONLY Kyrgyz speech using ONLY Cyrillic script (а-яёА-ЯЁ).
+
+CRITICAL RULES:
+1. NEVER use Korean Hangul (ㄱ-ㅎㅏ-ㅣ가-힣), Chinese (一-龯), or Latin characters
+2. ONLY use Cyrillic letters: а б в г д е ё ж з и й к л м н о п р с т у ф х ц ч ш щ ъ ы ь э ю я
+3. Common Kyrgyz words: "мен" (I), "сен" (you), "атыңыз" (your name), "ким" (who), "салам" (hello), "рахмат" (thanks)
+4. If you hear ANY non-Kyrgyz speech (English, Korean, Chinese, etc.), return "WRONG_LANGUAGE_DETECTED: Кыргызча гана сүйлөңүз"
+5. If unsure about spelling, use standard Kyrgyz Cyrillic spelling
+6. NEVER mix scripts - ONLY Cyrillic allowed
+7. NEVER transcribe English words like "cat", "bitch", "hello", "thank you" - these are NOT Kyrgyz
+
+Examples of CORRECT Kyrgyz transcription:
+- "мен атыңыз ким" (What is your name?)
+- "салам" (Hello)
+- "рахмат" (Thank you)
+
+Examples of WRONG input that should trigger error:
+- "cat-cat, bitch-cat" → "WRONG_LANGUAGE_DETECTED: Кыргызча гана сүйлөңүз"
+- "hello world" → "WRONG_LANGUAGE_DETECTED: Кыргызча гана сүйлөңүз"
+- "안녕하세요" → "WRONG_LANGUAGE_DETECTED: Кыргызча гана сүйлөңүз"
+
+If you cannot transcribe in pure Cyrillic Kyrgyz, return "WRONG_LANGUAGE_DETECTED: Кыргызча гана сүйлөңүз"`,
+      ru: `Transcribe Russian speech (Русский) accurately. Common words: "привет" (hello), "спасибо" (thank you), "хорошо" (good), "как" (how), "что" (what). If not Russian, return "WRONG_LANGUAGE_DETECTED: Говорите только по-русски".`,
+      kk: `Transcribe Kazakh speech (Қазақша) accurately. Common words: "сәлем" (hello), "рахмет" (thank you), "жақсы" (good), "қалай" (how), "не" (what). If not Kazakh, return "WRONG_LANGUAGE_DETECTED: Қазақша ғана сөйлеңіз".`,
+      tg: `Transcribe Tajik speech (Тоҷикӣ) accurately. Common words: "салом" (hello), "ташаккур" (thank you), "хуб" (good), "чӣ тавр" (how), "чӣ" (what). If not Tajik, return "WRONG_LANGUAGE_DETECTED: Тоҷикӣ ғана гап занед".`,
+      tk: `Transcribe Turkmen speech (Türkmençe) accurately. Common words: "salam" (hello), "sag bol" (thank you), "gowy" (good), "nähili" (how), "näme" (what). If not Turkmen, return "WRONG_LANGUAGE_DETECTED: Türkmençe ýalňyz gürleň".`,
+      uz: `Transcribe Uzbek speech (O'zbekcha) accurately. Common words: "salom" (hello), "rahmat" (thank you), "yaxshi" (good), "qanday" (how), "nima" (what). If not Uzbek, return "WRONG_LANGUAGE_DETECTED: O'zbekcha gapiring".`,
     };
 
     return (
@@ -1892,150 +2003,7 @@ export class AppComponent implements OnDestroy {
     return entry.id;
   }
 
-  // Frontend language detection fallback
-  private detectWrongLanguageFrontend(
-    text: string,
-    expectedLanguage: string
-  ): boolean {
-    console.log(
-      '🔍 Frontend language detection for:',
-      text,
-      'expected:',
-      expectedLanguage
-    );
-
-    // Simple heuristics for language detection
-    const languagePatterns = {
-      en: {
-        // English patterns - more comprehensive
-        positive: /[a-zA-Z]/, // Any Latin characters
-        positive2:
-          /\b(the|and|or|but|in|on|at|to|for|of|with|by|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|must|shall|hello|hi|yes|no|ok|okay|good|bad|thank|thanks|please|sorry|excuse|help|what|where|when|why|how|who|which|this|that|here|there|now|then|today|tomorrow|yesterday|morning|afternoon|evening|night|time|day|week|month|year|name|age|old|new|big|small|hot|cold|fast|slow|easy|hard|happy|sad|angry|tired|hungry|thirsty|sick|well|fine|great|awesome|amazing|wonderful|beautiful|nice|lovely|perfect|excellent|fantastic|terrible|awful|horrible|disgusting|delicious|tasty|sweet|sour|bitter|spicy|salty|fresh|clean|dirty|wet|dry|full|empty|open|closed|free|busy|ready|finished|done|start|stop|go|come|leave|stay|wait|hurry|slow|quick|fast|slowly|quickly|carefully|easily|hardly|really|very|quite|pretty|rather|somewhat|totally|completely|absolutely|definitely|probably|maybe|perhaps|certainly|surely|obviously|clearly|exactly|precisely|approximately|about|around|nearly|almost|exactly|just|only|even|still|yet|already|soon|later|early|late|always|never|sometimes|often|usually|rarely|seldom|frequently|occasionally|constantly|continuously|immediately|instantly|suddenly|gradually|slowly|quickly|carefully|easily|hardly|really|very|quite|pretty|rather|somewhat|totally|completely|absolutely|definitely|probably|maybe|perhaps|certainly|surely|obviously|clearly|exactly|precisely|approximately|about|around|nearly|almost|exactly|just|only|even|still|yet|already|soon|later|early|late|always|never|sometimes|often|usually|rarely|seldom|frequently|occasionally|constantly|continuously|immediately|instantly|suddenly|gradually)\b/i,
-        // Non-English patterns
-        negative: /[а-яё]/i, // Cyrillic
-        negative2: /[一-龯]/, // Chinese
-        negative3: /[가-힣]/, // Korean
-        negative4: /[ا-ي]/, // Arabic
-      },
-      ky: {
-        // Kyrgyz patterns
-        positive: /[а-яё]/i, // Cyrillic
-        positive2:
-          /\b(салам|рахмат|жакшы|кантип|эмне|мен|сен|ал|биз|сиз|алар|бул|ошол|мына|анда|бул жерде|ушундай|ошондой)\b/i,
-        // Non-Kyrgyz patterns
-        negative:
-          /\b(the|and|or|but|in|on|at|to|for|of|with|by|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|must|shall)\b/i,
-        negative2: /[一-龯]/, // Chinese
-        negative3: /[가-힣]/, // Korean
-      },
-      ko: {
-        // Korean patterns
-        positive: /[가-힣]/, // Korean characters
-        positive2:
-          /\b(안녕|감사|좋다|어떻게|무엇|나|너|우리|당신|그들|이것|저것|여기|거기|이런|저런)\b/i,
-        // Non-Korean patterns
-        negative:
-          /\b(the|and|or|but|in|on|at|to|for|of|with|by|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|must|shall)\b/i,
-        negative2: /[а-яё]/i, // Cyrillic
-        negative3: /[一-龯]/, // Chinese
-      },
-      zh: {
-        // Chinese patterns
-        positive: /[一-龯]/, // Chinese characters
-        positive2:
-          /\b(你好|谢谢|好|怎么|什么|我|你|我们|你们|他们|这个|那个|这里|那里|这样|那样)\b/i,
-        // Non-Chinese patterns
-        negative:
-          /\b(the|and|or|but|in|on|at|to|for|of|with|by|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|must|shall)\b/i,
-        negative3: /[가-힣]/, // Korean
-        negative4: /[а-яё]/i, // Cyrillic
-      },
-      ru: {
-        // Russian patterns
-        positive: /[а-яё]/i, // Cyrillic
-        positive2:
-          /\b(привет|спасибо|хорошо|как|что|я|ты|мы|вы|они|это|то|здесь|там|так|также)\b/i,
-        // Non-Russian patterns
-        negative:
-          /\b(the|and|or|but|in|on|at|to|for|of|with|by|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|must|shall)\b/i,
-        negative2: /[一-龯]/, // Chinese
-        negative3: /[가-힣]/, // Korean
-      },
-    };
-
-    const patterns =
-      languagePatterns[expectedLanguage as keyof typeof languagePatterns];
-    if (!patterns) {
-      console.log('❌ No patterns found for language:', expectedLanguage);
-      return false;
-    }
-
-    // Check for positive patterns (should be present)
-    const hasPositive =
-      patterns.positive?.test(text) || (patterns as any).positive2?.test(text);
-
-    // Check for negative patterns (should NOT be present)
-    const hasNegative =
-      patterns.negative?.test(text) ||
-      (patterns as any).negative2?.test(text) ||
-      (patterns as any).negative3?.test(text) ||
-      (patterns as any).negative4?.test(text);
-
-    console.log('🔍 Language detection results:', {
-      text: text.substring(0, 50) + '...',
-      expectedLanguage,
-      hasPositive,
-      hasNegative,
-      positivePattern: patterns.positive?.source,
-      negativePattern: patterns.negative?.source,
-    });
-
-    // If we expect a specific language but find negative patterns, it's wrong language
-    if (hasNegative) {
-      console.log('❌ Wrong language detected: found negative patterns');
-      return true;
-    }
-
-    // For English, be more lenient - if it contains Latin characters, it's likely English
-    if (expectedLanguage === 'en') {
-      if (hasPositive) {
-        console.log('✅ English detected: found Latin characters');
-        return false;
-      }
-      // Only reject if it's very short and has no Latin characters
-      if (text.length < 3) {
-        console.log('❌ English rejected: too short and no Latin characters');
-        return true;
-      }
-    } else {
-      // For other languages, require positive patterns for longer text
-      if (!hasPositive && text.length > 10) {
-        console.log('❌ Wrong language detected: no positive patterns found');
-        return true;
-      }
-    }
-
-    console.log('✅ Language appears correct');
-    return false;
-  }
-
-  private getWrongLanguageMessage(language: string): string {
-    const messages = {
-      en: 'Please speak in English',
-      ko: '한국어로 말해주세요',
-      zh: '请说中文',
-      ky: 'Кыргызча сүйлөңүз',
-      ru: 'Говорите по-русски',
-      kk: 'Қазақша сөйлеңіз',
-      tg: 'Тоҷикӣ гап занед',
-      tk: 'Türkmençe gürleň',
-      uz: "O'zbekcha gapiring",
-    };
-    return (
-      messages[language as keyof typeof messages] ||
-      'Please speak in the selected language.'
-    );
-  }
+  // Frontend language detection methods removed for performance
 
   // Helper methods for template
   getUserLanguageName(lang: string): string {
@@ -2140,7 +2108,7 @@ export class AppComponent implements OnDestroy {
       this.playAudio(conversation.audioUrl);
     } else {
       console.log('No audio data available for this conversation');
-      this.showToast('No audio available for this conversation');
+      this.showTranslationError('No audio available for this conversation');
     }
   }
 
@@ -2157,10 +2125,10 @@ export class AppComponent implements OnDestroy {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
-      return new Blob([byteArray], { type: 'audio/mpeg' });
+      return new Blob([byteArray], { type: 'audio/wav' });
     } catch (error) {
-      console.error('Error decoding base64 audio data:', error);
-      throw new Error('Invalid base64 audio data');
+      console.error('Error converting base64 to blob:', error);
+      throw new Error('Invalid base64 data');
     }
   }
 
@@ -2183,201 +2151,124 @@ export class AppComponent implements OnDestroy {
     this.translations = this.translationService.getAllTranslations();
   }
 
-  /**
-   * Detects if translation is in a deadlock state due to system errors
-   */
   private isDeadlockTranslation(text: string): boolean {
     const lowerText = text.toLowerCase().trim();
 
-    // Deadlock indicators - patterns that suggest system errors causing translation loops
+    // Check for various deadlock patterns
     const deadlockPatterns = [
-      // Error messages that could cause loops
-      'error occurred',
-      'translation failed',
-      'processing error',
-      'system error',
-      'deadlock',
-      'timeout',
-      'connection failed',
-      'api error',
-      'service unavailable',
-      'internal server error',
-
-      // Repeated error patterns
-      'error error',
-      'failed failed',
-      'timeout timeout',
-      'error processing error',
-
-      // Empty or corrupted responses
+      // Empty or invalid responses
       text.length === 0,
       text.trim().length === 0,
       text === 'null',
       text === 'undefined',
       text === 'error',
       text === 'failed',
-
-      // Infinite loop indicators
+      text === 'timeout',
+      text === 'processing',
+      // Error patterns
       text.includes('processing') && text.includes('error'),
       text.includes('translation') && text.includes('failed'),
       text.includes('system') && text.includes('error'),
-
-      // Very long error messages (likely system generated)
+      text.includes('network') && text.includes('error'),
+      text.includes('server') && text.includes('error'),
+      // Very long error messages
       text.length > 1000 && lowerText.includes('error'),
-
-      // Repeated identical text (suggests stuck loop)
+      // Repeated text patterns
       this.isRepeatedText(text),
     ];
 
-    // Check for deadlock patterns
-    for (const pattern of deadlockPatterns) {
-      if (typeof pattern === 'string' && lowerText.includes(pattern)) {
-        console.log('🚫 Deadlock pattern detected:', pattern);
-        return true;
-      }
-      if (typeof pattern === 'boolean' && pattern) {
-        console.log('🚫 Deadlock condition detected');
-        return true;
-      }
-    }
-
-    return false;
+    return deadlockPatterns.some((pattern) => pattern);
   }
 
-  /**
-   * Checks if text is repeated (indicates stuck loop)
-   */
   private isRepeatedText(text: string): boolean {
     if (text.length < 10) return false;
 
-    // Check for repeated phrases
+    // Check for repeated words or phrases
     const words = text.split(' ');
     if (words.length < 3) return false;
 
-    // Check if the same phrase repeats multiple times
-    const phrase = words.slice(0, 3).join(' ');
-    const remainingText = words.slice(3).join(' ');
+    // Check if more than 70% of words are the same
+    const wordCounts = words.reduce((acc, word) => {
+      acc[word] = (acc[word] || 0) + 1;
+      return acc;
+    }, {} as { [key: string]: number });
 
-    return (
-      remainingText.includes(phrase) && remainingText.split(phrase).length > 2
-    );
+    const maxCount = Math.max(...Object.values(wordCounts));
+    const repetitionRatio = maxCount / words.length;
+
+    return repetitionRatio > 0.7;
   }
 
-  /**
-   * Filters text to only include content in the selected language
-   */
   private filterLanguageText(text: string, targetLanguage: string): string {
     // For now, we'll use a simple approach and let the system prompt handle language filtering
     // The system prompt should already be configured to only transcribe the target language
-    // This method can be enhanced with more sophisticated language detection if needed
+    // This method can be enhanced later with more sophisticated filtering
 
-    // Basic validation - check if text contains only expected characters for the language
     switch (targetLanguage) {
       case 'en':
-        // English - allow Latin characters, numbers, basic punctuation
+        // Allow English characters, numbers, and common punctuation
         if (/^[a-zA-Z0-9\s.,!?\-'"]+$/.test(text)) {
           return text;
         }
         break;
       case 'ko':
-        // Korean - allow Hangul, Latin characters, numbers, basic punctuation
+        // Allow Korean characters, English, numbers, and common punctuation
         if (/^[가-힣a-zA-Z0-9\s.,!?\-'"]+$/.test(text)) {
           return text;
         }
         break;
       case 'zh':
-        // Chinese - allow Chinese characters, Latin characters, numbers, basic punctuation
+        // Allow Chinese characters, English, numbers, and common punctuation
         if (/^[\u4e00-\u9fff\u3400-\u4dbfa-zA-Z0-9\s.,!?\-'"]+$/.test(text)) {
           return text;
         }
         break;
-      case 'ru':
-        // Russian - allow Cyrillic, Latin characters, numbers, basic punctuation
-        if (/^[а-яА-Яa-zA-Z0-9\s.,!?\-'"]+$/.test(text)) {
-          return text;
-        }
-        break;
       case 'ky':
-        // Kyrgyz - allow Cyrillic, Latin characters, numbers, basic punctuation
-        if (/^[а-яА-Яa-zA-Z0-9\s.,!?\-'"]+$/.test(text)) {
-          return text;
-        }
-        break;
+      case 'ru':
       case 'kk':
-        // Kazakh - allow Cyrillic, Latin characters, numbers, basic punctuation
-        if (/^[а-яА-Яa-zA-Z0-9\s.,!?\-'"]+$/.test(text)) {
-          return text;
-        }
-        break;
       case 'tg':
-        // Tajik - allow Cyrillic, Latin characters, numbers, basic punctuation
+        // Allow Cyrillic characters, English, numbers, and common punctuation
         if (/^[а-яА-Яa-zA-Z0-9\s.,!?\-'"]+$/.test(text)) {
           return text;
         }
         break;
       case 'tk':
-        // Turkmen - allow Latin characters, numbers, basic punctuation
-        if (/^[a-zA-Z0-9\s.,!?\-'"]+$/.test(text)) {
-          return text;
-        }
-        break;
       case 'uz':
-        // Uzbek - allow Latin characters, numbers, basic punctuation
+        // Allow Latin characters, numbers, and common punctuation
         if (/^[a-zA-Z0-9\s.,!?\-'"]+$/.test(text)) {
           return text;
         }
         break;
     }
 
-    // If no specific pattern matches, return the original text
-    // The system prompt should handle the actual language filtering
+    // If filtering fails, return original text
     return text;
   }
 
-  /**
-   * Gets the display name for a language code
-   */
-  private getLanguageName(languageCode: string): string {
+  getLanguageName(languageCode: string): string {
     const languageNames: { [key: string]: string } = {
       en: 'English',
-      ko: 'Korean',
-      zh: 'Chinese',
-      ru: 'Russian',
-      ky: 'Kyrgyz',
-      kk: 'Kazakh',
-      tg: 'Tajik',
-      tk: 'Turkmen',
-      uz: 'Uzbek',
+      ko: 'Korean (한국어)',
+      zh: 'Chinese (中文)',
+      ky: 'Kyrgyz (Кыргызча)',
+      ru: 'Russian (Русский)',
+      kk: 'Kazakh (Қазақша)',
+      tg: 'Tajik (Тоҷикӣ)',
+      tk: 'Turkmen (Türkmençe)',
+      uz: "Uzbek (O'zbekcha)",
     };
     return languageNames[languageCode] || languageCode;
   }
 
-  /**
-   * Show auto-dismissing toast message
-   */
-  private showToast(message: string) {
-    const toast = document.createElement('div');
-    toast.textContent = message;
-    toast.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background-color: rgba(0, 0, 0, 0.85);
-      color: white;
-      padding: 16px 24px;
-      border-radius: 8px;
-      font-size: 14px;
-      z-index: 99999;
-      max-width: 80%;
-      text-align: center;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    `;
-    document.body.appendChild(toast);
-
-    // Auto-dismiss after 2 seconds
-    setTimeout(() => {
-      toast.remove();
-    }, 2000);
+  // Simple error display method (replaces toast for performance)
+  private showTranslationError(message: string) {
+    console.error('Translation Error:', message);
+    // Simple alert for critical errors only
+    if (
+      message.includes('Translation failed') ||
+      message.includes('Could not transcribe')
+    ) {
+      alert(message);
+    }
   }
 }

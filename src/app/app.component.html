@@ -223,8 +223,7 @@
             <div class="mb-2">
               <div class="text-sm text-gray-600 mb-1">
                 <strong
-                  >You speak
-                  {{ getUserLanguageName(entry.userLanguage) }}:</strong
+                  >You spoke {{ getLanguageName(entry.userLanguage) }}:</strong
                 >
               </div>
               <div class="p-2 bg-white rounded border">
@@ -235,7 +234,7 @@
               <div class="text-sm text-gray-600 mb-1">
                 <strong
                   >Partner hears
-                  {{ getPartnerLanguageName(entry.partnerLanguage) }}:</strong
+                  {{ getLanguageName(entry.partnerLanguage) }}:</strong
                 >
               </div>
               <div class="p-2 bg-white rounded border">
@@ -447,7 +446,7 @@
               <div class="text-sm text-gray-600 mb-1">
                 <strong
                   >{{ translations.partnerSpeaksLabel }}
-                  {{ getPartnerLanguageName(entry.userLanguage) }}:</strong
+                  {{ getLanguageName(entry.userLanguage) }}:</strong
                 >
               </div>
               <div class="p-2 bg-white rounded border">
@@ -458,7 +457,7 @@
               <div class="text-sm text-gray-600 mb-1">
                 <strong
                   >You hear
-                  {{ getUserLanguageName(entry.partnerLanguage) }}:</strong
+                  {{ getLanguageName(entry.partnerLanguage) }}:</strong
                 >
               </div>
               <div class="p-2 bg-white rounded border">

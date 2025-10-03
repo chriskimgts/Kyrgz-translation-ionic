@@ -20,40 +20,36 @@
           Sign in to your account
         </h2>
 
-        <form class="space-y-6" (ngSubmit)="onLogin()" #loginForm="ngForm">
-          <!-- Login Method Selection -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-3">
-              Login Method
-            </label>
-            <div class="flex space-x-4">
-              <label class="flex items-center">
-                <input
-                  type="radio"
-                  name="loginMethod"
-                  value="email"
-                  [(ngModel)]="loginData.loginMethod"
-                  (ngModelChange)="onLoginMethodChange()"
-                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <span class="ml-2 text-sm text-gray-700">Email</span>
-              </label>
-              <label class="flex items-center">
-                <input
-                  type="radio"
-                  name="loginMethod"
-                  value="phone"
-                  [(ngModel)]="loginData.loginMethod"
-                  (ngModelChange)="onLoginMethodChange()"
-                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <span class="ml-2 text-sm text-gray-700">Phone Number</span>
-              </label>
-            </div>
-          </div>
+        <!-- Auth0 Login Button -->
+        <div class="mb-6">
+          <button
+            type="button"
+            (click)="handleAuth0LoginClick($event)"
+            class="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"
+              />
+            </svg>
+            Login with Auth0 (SSO)
+          </button>
+        </div>
 
-          <!-- Email Login -->
-          <div *ngIf="loginData.loginMethod === 'email'">
+        <div class="relative mb-6">
+          <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-gray-300"></div>
+          </div>
+          <div class="relative flex justify-center text-sm">
+            <span class="px-2 bg-white text-gray-500"
+              >Or continue with email</span
+            >
+          </div>
+        </div>
+
+        <form class="space-y-6" (ngSubmit)="onLogin()" #loginForm="ngForm">
+          <!-- Email Login Only -->
+          <div>
             <label for="email" class="block text-sm font-medium text-gray-700">
               Email address
             </label>
@@ -66,35 +62,6 @@
                 required
                 class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 placeholder="Enter your email"
-              />
-            </div>
-          </div>
-
-          <!-- Phone Login -->
-          <div *ngIf="loginData.loginMethod === 'phone'">
-            <label class="block text-sm font-medium text-gray-700">
-              Phone number
-            </label>
-            <div class="mt-1 flex">
-              <select
-                [(ngModel)]="loginData.countryCode"
-                name="loginCountryCode"
-                class="px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
-              >
-                <option
-                  *ngFor="let country of countryCodes"
-                  [value]="country.code"
-                >
-                  {{ country.flag }} {{ country.code }}
-                </option>
-              </select>
-              <input
-                type="tel"
-                [(ngModel)]="loginData.phoneNumber"
-                name="loginPhoneNumber"
-                required
-                class="flex-1 px-3 py-2 border border-l-0 border-gray-300 rounded-r-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Enter your phone number"
               />
             </div>
           </div>
@@ -192,6 +159,33 @@
           Create your account
         </h2>
 
+        <!-- Auth0 Register Button -->
+        <div class="mb-6">
+          <button
+            type="button"
+            (click)="handleAuth0RegisterClick($event)"
+            class="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"
+              />
+            </svg>
+            Sign Up with Auth0 (SSO)
+          </button>
+        </div>
+
+        <div class="relative mb-6">
+          <div class="absolute inset-0 flex items-center">
+            <div class="w-full border-t border-gray-300"></div>
+          </div>
+          <div class="relative flex justify-center text-sm">
+            <span class="px-2 bg-white text-gray-500"
+              >Or continue with email</span
+            >
+          </div>
+        </div>
+
         <form
           class="space-y-6"
           (ngSubmit)="onRegister()"
@@ -217,39 +211,8 @@
             </div>
           </div>
 
-          <!-- Registration Method Selection -->
+          <!-- Email Registration Only -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-3">
-              Registration Method
-            </label>
-            <div class="flex space-x-4">
-              <label class="flex items-center">
-                <input
-                  type="radio"
-                  name="registrationMethod"
-                  value="email"
-                  [(ngModel)]="registerData.registrationMethod"
-                  (ngModelChange)="onRegistrationMethodChange()"
-                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <span class="ml-2 text-sm text-gray-700">Email</span>
-              </label>
-              <label class="flex items-center">
-                <input
-                  type="radio"
-                  name="registrationMethod"
-                  value="phone"
-                  [(ngModel)]="registerData.registrationMethod"
-                  (ngModelChange)="onRegistrationMethodChange()"
-                  class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                />
-                <span class="ml-2 text-sm text-gray-700">Phone Number</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Email Registration -->
-          <div *ngIf="registerData.registrationMethod === 'email'">
             <label
               for="reg-email"
               class="block text-sm font-medium text-gray-700"
@@ -267,38 +230,6 @@
                 placeholder="Enter your email"
               />
             </div>
-          </div>
-
-          <!-- Phone Registration -->
-          <div *ngIf="registerData.registrationMethod === 'phone'">
-            <label class="block text-sm font-medium text-gray-700">
-              Phone number
-            </label>
-            <div class="mt-1 flex">
-              <select
-                [(ngModel)]="registerData.countryCode"
-                name="countryCode"
-                class="px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
-              >
-                <option
-                  *ngFor="let country of countryCodes"
-                  [value]="country.code"
-                >
-                  {{ country.flag }} {{ country.code }}
-                </option>
-              </select>
-              <input
-                type="tel"
-                [(ngModel)]="registerData.phoneNumber"
-                name="phoneNumber"
-                required
-                class="flex-1 px-3 py-2 border border-l-0 border-gray-300 rounded-r-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                placeholder="Enter your phone number"
-              />
-            </div>
-            <p class="mt-1 text-xs text-gray-500">
-              We'll send you a verification code via SMS
-            </p>
           </div>
 
           <div>

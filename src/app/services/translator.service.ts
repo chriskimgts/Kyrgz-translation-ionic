@@ -13,6 +13,8 @@ declare global {
 @Injectable({ providedIn: 'root' })
 export class TranslatorService {
   private base: string;
+  private translationCache = new Map<string, string>();
+  private readonly CACHE_SIZE_LIMIT = 1000; // Limit cache size
 
   constructor() {
     this.base = this.getBaseUrl();
@@ -161,12 +163,21 @@ export class TranslatorService {
   async translate(
     text: string,
     target: 'ky' | 'en' | 'ko' | 'zh' | 'ru' | 'kk' | 'tg' | 'tk' | 'uz',
-    sourceLanguage?: string
+    sourceLanguage?: string,
+    userLanguage?: string,
+    partnerLanguage?: string
   ) {
     console.log('🔄 Starting translation...');
     console.log('📝 Text to translate:', text);
     console.log('🎯 Target language:', target);
     console.log('🔤 Source language:', sourceLanguage);
+
+    // Check cache first for performance
+    const cacheKey = `${text}|${target}|${sourceLanguage}`;
+    if (this.translationCache.has(cacheKey)) {
+      console.log('⚡ Using cached translation');
+      return this.translationCache.get(cacheKey)!;
+    }
 
     // Get current base URL dynamically
     const currentBase = this.getCurrentBaseUrl();
@@ -215,10 +226,12 @@ export class TranslatorService {
       }
     }
 
-    // Create translation system prompt
+    // Create translation system prompt with language selection context
     const translationSystemPrompt = this.getTranslationSystemPrompt(
       target,
-      sourceLanguage
+      sourceLanguage,
+      userLanguage,
+      partnerLanguage
     );
     console.log('📝 Translation system prompt:', translationSystemPrompt);
 
@@ -250,7 +263,13 @@ export class TranslatorService {
 
       const result = await r.json();
       console.log('✅ Translation result:', result);
-      return result.text as string;
+
+      const translation = result.text as string;
+
+      // Cache the translation for future use
+      this.cacheTranslation(cacheKey, translation);
+
+      return translation;
     } catch (error) {
       console.error('💥 Translation fetch error:', error);
       console.error('💥 Error details:', {
@@ -374,12 +393,37 @@ export class TranslatorService {
     return this.isPlayingAudio;
   }
 
+  // Cache management methods
+  private cacheTranslation(key: string, translation: string): void {
+    // Limit cache size to prevent memory issues
+    if (this.translationCache.size >= this.CACHE_SIZE_LIMIT) {
+      // Remove oldest entries (Map maintains insertion order)
+      const firstKey = this.translationCache.keys().next().value;
+      if (firstKey) {
+        this.translationCache.delete(firstKey);
+      }
+    }
+
+    this.translationCache.set(key, translation);
+    console.log(
+      `💾 Cached translation. Cache size: ${this.translationCache.size}`
+    );
+  }
+
+  // Clear cache if needed
+  clearTranslationCache(): void {
+    this.translationCache.clear();
+    console.log('🗑️ Translation cache cleared');
+  }
+
   /**
-   * Get language-specific system prompt for translation
+   * Get language-specific system prompt for translation with language selection context
    */
   private getTranslationSystemPrompt(
     targetLanguage: string,
-    sourceLanguage?: string
+    sourceLanguage?: string,
+    userLanguage?: string,
+    partnerLanguage?: string
   ): string {
     const languageNames: { [key: string]: string } = {
       en: 'English',
@@ -398,6 +442,21 @@ export class TranslatorService {
       ? languageNames[sourceLanguage] || sourceLanguage
       : 'the source language';
 
+    // Build language selection context
+    let languageContext = '';
+    if (userLanguage && partnerLanguage) {
+      const userLangName = languageNames[userLanguage] || userLanguage;
+      const partnerLangName = languageNames[partnerLanguage] || partnerLanguage;
+      languageContext = `
+
+🎯 LANGUAGE SELECTION CONTEXT:
+- User speaks: ${userLangName}
+- Partner speaks: ${partnerLangName}
+- Current translation direction: ${sourceName} → ${targetName}
+- This is a conversation between a ${userLangName} speaker and a ${partnerLangName} speaker
+- The translation should be natural and appropriate for this specific language pair`;
+    }
+
     // Add specific instructions for Kyrgyz and Kazakh to prevent confusion
     let specificInstructions = '';
     if (targetLanguage === 'ky') {
@@ -407,34 +466,95 @@ export class TranslatorService {
 - This is KYRGYZ (Кыргызча), NOT Kazakh (Қазақша)
 - Use ONLY Kyrgyz-specific vocabulary and grammar patterns
 - Common Kyrgyz words: "салам" (hello), "рахмат" (thank you), "жакшы" (good), "кантип" (how), "эмне" (what)
+- Kyrgyz verb forms: "айтамын" (I will say), "уктаймын" (I will sleep), "барам" (I go), "келем" (I come)
 - Kyrgyz uses "ы" and "ү" sounds more frequently than Kazakh
 - Kyrgyz is spoken in Kyrgyzstan, NOT Kazakhstan
 - Kyrgyz has different vowel harmony than Kazakh
 - FORBIDDEN: Do NOT use any Kazakh words, patterns, or vocabulary
 - If the source text appears to be Kazakh, translate it as if it were Kyrgyz
-- Always use Kyrgyz spelling conventions, not Kazakh ones`;
+- Always use Kyrgyz spelling conventions, not Kazakh ones
+- Pay attention to Kyrgyz verb conjugations and tenses`;
     } else if (targetLanguage === 'kk') {
       specificInstructions = `
 
-CRITICAL FOR KAZAKH TRANSLATION:
+🚨 CRITICAL FOR KAZAKH TRANSLATION: 🚨
 - This is KAZAKH (Қазақша), NOT Kyrgyz (Кыргызча)
 - Use Kazakh-specific vocabulary and grammar patterns
-- Common Kazakh words: "сәлем" (hello), "рахмет" (thank you), "жақсы" (good)
+- Common Kazakh words: "сәлем" (hello), "рахмет" (thank you), "жақсы" (good), "қалай" (how), "не" (what)
 - Kazakh uses "қ" and "ғ" sounds more frequently than Kyrgyz
 - Kazakh is spoken in Kazakhstan, NOT Kyrgyzstan
-- DO NOT use Kyrgyz words or patterns`;
+- DO NOT use Kyrgyz words or patterns
+- Pay attention to Kazakh verb conjugations and tenses`;
     }
 
-    return `You are a professional translator for a real-time translation app. Translate the given text from ${sourceName} to ${targetName}.${specificInstructions}
+    // Add context-specific instructions based on language pair
+    let pairSpecificInstructions = '';
+    if (userLanguage && partnerLanguage) {
+      if (
+        (userLanguage === 'en' && partnerLanguage === 'ky') ||
+        (userLanguage === 'ky' && partnerLanguage === 'en')
+      ) {
+        pairSpecificInstructions = `
 
-IMPORTANT RULES:
-1. ONLY translate to ${targetName}. Do not translate to any other language.
-2. Maintain the original meaning and context.
-3. Use natural, fluent ${targetName} expressions suitable for live conversation.
-4. If the text is already in ${targetName}, return it unchanged.
-5. If the text contains mixed languages, translate only the parts that are not in ${targetName}.
-6. Preserve proper names, numbers, and technical terms when appropriate.
-7. Return ONLY the translated text, no explanations or additional text.
-8. This translation will be used for real-time communication between speakers of different languages.`;
+💬 ENGLISH-KYRGYZ CONVERSATION CONTEXT:
+- This is a conversation between English and Kyrgyz speakers
+- Use conversational, friendly tone appropriate for real-time communication
+- Consider cultural context: English speaker may be unfamiliar with Kyrgyz culture
+- Kyrgyz speaker may be unfamiliar with English cultural references
+- Use clear, simple language that's easy to understand in real-time`;
+      } else if (
+        (userLanguage === 'en' && partnerLanguage === 'kk') ||
+        (userLanguage === 'kk' && partnerLanguage === 'en')
+      ) {
+        pairSpecificInstructions = `
+
+💬 ENGLISH-KAZAKH CONVERSATION CONTEXT:
+- This is a conversation between English and Kazakh speakers
+- Use conversational, friendly tone appropriate for real-time communication
+- Consider cultural context: English speaker may be unfamiliar with Kazakh culture
+- Kazakh speaker may be unfamiliar with English cultural references
+- Use clear, simple language that's easy to understand in real-time`;
+      } else if (
+        (userLanguage === 'en' && partnerLanguage === 'ko') ||
+        (userLanguage === 'ko' && partnerLanguage === 'en')
+      ) {
+        pairSpecificInstructions = `
+
+💬 ENGLISH-KOREAN CONVERSATION CONTEXT:
+- This is a conversation between English and Korean speakers
+- Use conversational, friendly tone appropriate for real-time communication
+- Consider cultural context: English speaker may be unfamiliar with Korean culture
+- Korean speaker may be unfamiliar with English cultural references
+- Use clear, simple language that's easy to understand in real-time`;
+      } else if (
+        (userLanguage === 'en' && partnerLanguage === 'zh') ||
+        (userLanguage === 'zh' && partnerLanguage === 'en')
+      ) {
+        pairSpecificInstructions = `
+
+💬 ENGLISH-CHINESE CONVERSATION CONTEXT:
+- This is a conversation between English and Chinese speakers
+- Use conversational, friendly tone appropriate for real-time communication
+- Consider cultural context: English speaker may be unfamiliar with Chinese culture
+- Chinese speaker may be unfamiliar with English cultural references
+- Use clear, simple language that's easy to understand in real-time`;
+      } else if (
+        (userLanguage === 'en' && partnerLanguage === 'ru') ||
+        (userLanguage === 'ru' && partnerLanguage === 'en')
+      ) {
+        pairSpecificInstructions = `
+
+💬 ENGLISH-RUSSIAN CONVERSATION CONTEXT:
+- This is a conversation between English and Russian speakers
+- Use conversational, friendly tone appropriate for real-time communication
+- Consider cultural context: English speaker may be unfamiliar with Russian culture
+- Russian speaker may be unfamiliar with English cultural references
+- Use clear, simple language that's easy to understand in real-time`;
+      }
+    }
+
+    return `Translate from ${sourceName} to ${targetName}.${languageContext}${specificInstructions}${pairSpecificInstructions}
+
+Rules: Only translate to ${targetName}. Use natural conversation style. Return only the translation.`;
   }
 }

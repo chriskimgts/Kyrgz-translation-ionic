@@ -8,6 +8,11 @@ export const routes: Routes = [
       import('./home/home.module').then((m) => m.HomePageModule),
   },
   {
+    path: 'callback',
+    loadChildren: () =>
+      import('./callback/callback.module').then((m) => m.CallbackModule),
+  },
+  {
     path: '',
     redirectTo: 'home',
     pathMatch: 'full',

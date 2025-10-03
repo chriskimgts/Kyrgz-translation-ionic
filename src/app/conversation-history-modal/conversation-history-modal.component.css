@@ -183,11 +183,11 @@
   flex-shrink: 0;
 }
 
-/* Android specific header adjustments */
+/* Mobile specific header adjustments */
 @media screen and (max-width: 768px) {
   .modal-header-fixed {
     padding: 0.5rem 0.5rem 0.25rem 0.5rem;
-    padding-top: env(safe-area-inset-top, 0.5rem);
+    padding-top: max(env(safe-area-inset-top), 1rem);
     margin: 0;
     width: 100%;
     left: 0;
@@ -238,11 +238,17 @@
   color: #6b7280;
 }
 
-/* Android specific close button adjustments */
+/* Mobile specific close button adjustments */
 @media screen and (max-width: 768px) {
   .close-button {
     margin-top: -0.25rem;
     margin-right: -0.25rem;
+    padding: 0.75rem;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 
@@ -254,10 +260,10 @@
   overflow-y: visible;
 }
 
-/* Android specific body adjustments */
+/* Mobile specific body adjustments */
 @media screen and (max-width: 768px) {
   .modal-body {
-    padding: env(safe-area-inset-top, 0.5rem) 1rem 0.5rem 1rem;
+    padding: 0.5rem 1rem 0.5rem 1rem;
   }
 }
 
